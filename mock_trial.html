@@ -289,6 +289,68 @@ body.hide-right #right-panel{display:none}
 #notes-pad{width:100%;min-height:90px;resize:vertical;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:11px;line-height:1.5;padding:8px;outline:none}
 #notes-pad:focus{border-color:var(--gold-dim)}
 #notes-pad::placeholder{color:var(--text-muted)}
+
+/* ═══════════ COMPACT LEFT PANEL ═══════════ */
+#left-panel{width:166px}
+#left-panel .panel-section{padding:8px 9px}
+#left-panel .panel-label{font-size:9px;margin-bottom:6px}
+#courtroom-svg-wrap{padding:8px 9px}
+#left-panel .char-card{padding:4px 6px;margin-bottom:3px}
+#left-panel .char-avatar{width:22px;height:22px;font-size:10px}
+#left-panel .char-name{font-size:10px}#left-panel .char-role{font-size:8px}
+#left-panel #notes-pad{min-height:64px;font-size:10px}
+#left-panel #witness-card{font-size:10px}
+#left-panel #phase-guide{font-size:10px}
+
+/* ═══════════ SETTINGS ═══════════ */
+.hdr-toggle.gear{font-size:14px;padding:4px 9px}
+#settings-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:160;align-items:center;justify-content:center;padding:20px}
+#settings-overlay.open{display:flex}
+#settings-card{background:var(--surface);border:1px solid var(--border2);border-radius:14px;max-width:460px;width:100%;box-shadow:0 30px 90px rgba(0,0,0,.65)}
+#settings-card .set-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}
+#settings-card .set-title{font-family:'EB Garamond',serif;font-size:20px;color:var(--gold)}
+#settings-card .set-head button{background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer}
+#settings-body{padding:16px 18px}
+#settings-body label.set-row{display:flex;align-items:flex-start;gap:11px;padding:12px;border:1px solid var(--border);border-radius:10px;margin-bottom:9px;cursor:pointer;transition:border-color .15s}
+#settings-body label.set-row:hover{border-color:var(--border2)}
+#settings-body .set-row input{margin-top:2px;width:17px;height:17px;accent-color:var(--gold);cursor:pointer;flex-shrink:0}
+#settings-body .set-row .st{font-weight:600;font-size:13px;color:var(--text)}
+#settings-body .set-row .sd{font-size:11px;color:var(--text-dim);line-height:1.5;margin-top:3px}
+
+/* objection spotter + tutorials */
+#spotter-hint{display:none;margin:0 14px 8px;background:rgba(224,90,58,.1);border:1px solid #5a2a1a;border-radius:10px;padding:9px 12px;font-size:12px;color:#ffb59f;line-height:1.5}
+#spotter-hint b{color:var(--prosecution)}
+.qobj-chip.pulse{border-color:var(--prosecution);background:rgba(224,90,58,.28);animation:chipPulse 1s ease-in-out 4}
+@keyframes chipPulse{0%,100%{box-shadow:0 0 0 0 rgba(224,90,58,0)}50%{box-shadow:0 0 0 4px rgba(224,90,58,.4)}}
+#tut-pop{display:none;position:fixed;z-index:170;max-width:290px;background:var(--surface);border:1px solid var(--gold);border-radius:11px;padding:14px 16px;box-shadow:0 14px 44px rgba(0,0,0,.6);font-size:12px;line-height:1.55;color:var(--text-dim)}
+#tut-pop .tt{color:var(--gold);font-weight:700;font-size:13px;margin-bottom:6px;display:block;font-family:'EB Garamond',serif}
+#tut-pop .tut-next{margin-top:12px;display:flex;justify-content:flex-end}
+#tut-pop .tut-next button{font-size:11px;font-weight:700;padding:6px 14px;border-radius:8px;border:none;background:var(--gold);color:#1a1200;cursor:pointer}
+
+/* ═══════════ FULL-SCREEN COURTROOM VIEW ═══════════ */
+.act-btn.court{color:#caa15f;border-color:#5a4528}
+.act-btn.court:hover:not(:disabled){background:rgba(202,161,95,.1)}
+#courtroom-view{display:none;position:fixed;inset:0;z-index:95;background:radial-gradient(1200px 760px at 50% -5%,#211d18 0%,#0d0d0f 72%);flex-direction:column}
+#courtroom-view.open{display:flex}
+#cv-toolbar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);background:rgba(20,20,26,.65);flex-shrink:0;flex-wrap:wrap;gap:8px}
+#cv-toolbar .cv-title{font-family:'EB Garamond',serif;font-size:19px;color:var(--gold);letter-spacing:.04em}
+#cv-actions{display:flex;gap:6px;flex-wrap:wrap}
+#cv-actions button{font-size:11px;font-weight:600;padding:6px 11px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text-dim);cursor:pointer;font-family:'Inter',sans-serif;transition:all .12s}
+#cv-actions button:hover{border-color:var(--gold-dim);color:var(--text)}
+#cv-actions button.cv-exit{border-color:#5a2a1a;color:var(--prosecution)}
+#cv-scene{position:relative;flex:1;overflow:hidden}
+.cv-room{position:absolute;inset:0;width:100%;height:100%}
+.cv-figure{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;width:96px;text-align:center}
+.cv-figure svg.cv-person{width:48px;height:64px;stroke:#caa15f;stroke-width:2.2;fill:rgba(202,161,95,.05);filter:drop-shadow(0 3px 5px rgba(0,0,0,.55))}
+.cv-figure .cv-label{font-size:10px;font-weight:600;color:var(--text-dim);margin-top:4px;white-space:nowrap;background:rgba(13,13,15,.55);padding:1px 7px;border-radius:6px}
+.cv-figure.speaking svg.cv-person{stroke:var(--gold);stroke-width:3;fill:var(--gold-glow);filter:drop-shadow(0 0 12px var(--gold-glow))}
+.cv-figure.speaking .cv-label{color:var(--gold)}
+.cv-bubble{display:none;position:absolute;bottom:112%;left:50%;transform:translateX(-50%);width:max-content;min-width:120px;max-width:340px;max-height:240px;overflow:auto;background:var(--surface);border:1px solid var(--gold);border-radius:13px;padding:11px 14px;font-family:'EB Garamond',serif;font-size:14px;line-height:1.5;color:var(--text);box-shadow:0 12px 38px rgba(0,0,0,.6);text-align:left;z-index:6}
+.cv-figure.speaking .cv-bubble{display:block}
+.cv-bubble::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:9px solid transparent;border-top-color:var(--gold)}
+.cv-bubble .cv-sp{display:block;font-family:'Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:5px}
+.cv-jury{display:flex;gap:2px}
+.cv-jury svg.cv-person{width:22px;height:28px;stroke-width:2.4}
 </style>
 </head>
 <body>
@@ -339,6 +401,7 @@ body.hide-right #right-panel{display:none}
   <div id="header-right">
     <button class="hdr-toggle" id="tg-left" onclick="togglePanel('left')" title="Show or hide the left panel (courtroom, witness, notes)">◧ Left</button>
     <button class="hdr-toggle" id="tg-right" onclick="togglePanel('right')" title="Show or hide the right panel (objections, evidence)">Right ◨</button>
+    <button class="hdr-toggle gear" id="btn-settings" onclick="openSettings()" title="Settings — tutorials & objection training">⚙</button>
     <div id="tts-control">
       <span style="font-size:10px">🔊</span>
       <input type="range" id="tts-speed" min="0.5" max="3" step="0.1" value="1.0" oninput="updateTTSLabel()" title="Speech speed — drag any time, even while a voice is talking (0.5×–3.0×)">
@@ -415,6 +478,7 @@ body.hide-right #right-panel{display:none}
   <div id="transcript-wrap">
     <div id="transcript-col">
       <div id="coaching-box"></div>
+      <div id="spotter-hint"></div>
       <div id="transcript"></div>
       <!-- INPUT — lives with the transcript so it moves & resizes together -->
       <div id="input-area">
@@ -423,6 +487,7 @@ body.hide-right #right-panel{display:none}
           <button class="act-btn next" id="btn-next" onclick="nextPhase()" title="Advance to the next phase of the trial" disabled>Next Phase →</button>
           <button class="act-btn coach" id="btn-coach" onclick="getCoaching()" title="Pause the trial and get strategic advice from the AI coach" disabled>💡 Coaching</button>
           <button class="act-btn mic" id="btn-mic" onclick="toggleMic()" title="Toggle speech-to-text — click to start (types as you speak), click again to stop. It will NOT auto-send." disabled>🎤 Speak</button>
+          <button class="act-btn court" id="btn-court" onclick="enterCourtroom()" title="Full-screen courtroom view — outline figures with speech bubbles for whoever is speaking" disabled>🏛 Courtroom</button>
           <button class="act-btn docs" id="btn-docs" onclick="toggleSplit()" title="Split-screen the real case PDFs — exhibits, affidavits, rulebooks, evaluation form" disabled>📑 Documents</button>
           <button class="act-btn rules" id="btn-rules" onclick="openModal('rules')" title="Open witnesses, exhibits, charges, Y&G rules & full objection guide" disabled>📋 Rules & Docs</button>
           <button class="act-btn pretrial" id="btn-pretrial" onclick="openPretrial()" title="Open the pre-trial motions conference" disabled>⚖️ Pre-Trial</button>
@@ -461,6 +526,68 @@ body.hide-right #right-panel{display:none}
       <div class="panel-label">Objections Log</div>
       <div id="obj-log"></div>
     </div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div id="settings-overlay" onclick="if(event.target===this)closeSettings()">
+  <div id="settings-card">
+    <div class="set-head"><div class="set-title">⚙ Settings</div><button onclick="closeSettings()">✕</button></div>
+    <div id="settings-body">
+      <label class="set-row"><input type="checkbox" id="set-tutorials" onchange="saveSettings()"><div><div class="st">Tutorials &amp; tips</div><div class="sd">Show a short coach-mark the first time you reach a new feature. Turn off once you know your way around.</div></div></label>
+      <label class="set-row"><input type="checkbox" id="set-spotter" onchange="saveSettings()"><div><div class="st">🎯 Objection Spotter (training)</div><div class="sd">When the other side says something objectionable, flag the moment and pulse the matching objection chip — so you learn to pattern-recognize hearsay, leading, speculation, and more.</div></div></label>
+      <label class="set-row"><input type="checkbox" id="set-autoread" onchange="saveSettings()"><div><div class="st">🔊 Read responses aloud</div><div class="sd">Speak each line in the character voices. Turn off for a quiet, text-only trial.</div></div></label>
+    </div>
+  </div>
+</div>
+
+<!-- TUTORIAL COACH-MARK -->
+<div id="tut-pop"></div>
+
+<!-- FULL-SCREEN COURTROOM VIEW -->
+<div id="courtroom-view">
+  <div id="cv-toolbar">
+    <div class="cv-title">🏛 The Courtroom</div>
+    <div id="cv-actions">
+      <button onclick="openModal('exhibits')">📄 Evidence</button>
+      <button onclick="openModal('witnesses')">📁 Affidavits</button>
+      <button onclick="openModal('rules');switchTab('rules')">📋 Rules</button>
+      <button onclick="openModal('rules');switchTab('objections')">⚠ Objections</button>
+      <button class="cv-exit" onclick="exitCourtroom()">✕ Exit to Transcript</button>
+    </div>
+  </div>
+  <div id="cv-scene">
+    <svg class="cv-room" viewBox="0 0 1000 620" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <linearGradient id="cvWood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a2f22"/><stop offset="1" stop-color="#241d15"/></linearGradient>
+        <linearGradient id="cvFloor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#17161b"/><stop offset="1" stop-color="#0d0d0f"/></linearGradient>
+      </defs>
+      <polygon points="120,250 880,250 1000,620 0,620" fill="url(#cvFloor)"/>
+      <polygon points="0,0 120,60 120,250 0,620" fill="#15130f"/>
+      <polygon points="1000,0 880,60 880,250 1000,620" fill="#15130f"/>
+      <rect x="120" y="55" width="760" height="195" fill="#1b1813"/>
+      <g stroke="#4a3c2a" stroke-width="1.4" opacity=".6">
+        <line x1="220" y1="60" x2="220" y2="248"/><line x1="320" y1="60" x2="320" y2="248"/>
+        <line x1="680" y1="60" x2="680" y2="248"/><line x1="780" y1="60" x2="780" y2="248"/>
+      </g>
+      <!-- judge platform + bench -->
+      <rect x="430" y="92" width="140" height="60" fill="#241d15" stroke="#6b5436" stroke-width="1.5"/>
+      <polygon points="400,150 600,150 645,236 355,236" fill="url(#cvWood)" stroke="#6b5436" stroke-width="2.4"/>
+      <polygon points="355,236 645,236 645,252 355,252" fill="#15110c"/>
+      <circle cx="500" cy="120" r="14" fill="none" stroke="#caa15f" stroke-width="1.6"/>
+      <!-- witness stand -->
+      <polygon points="690,205 792,205 814,272 668,272" fill="url(#cvWood)" stroke="#6b5436" stroke-width="2.2"/>
+      <!-- jury box -->
+      <polygon points="40,255 205,255 205,372 18,372" fill="url(#cvWood)" stroke="#6b5436" stroke-width="2.2" opacity=".92"/>
+      <!-- the bar / rail -->
+      <path d="M210,372 Q500,300 790,372" fill="none" stroke="#6b5436" stroke-width="3.4" opacity=".85"/>
+      <!-- counsel tables -->
+      <polygon points="215,430 415,430 438,505 192,505" fill="url(#cvWood)" stroke="#6b5436" stroke-width="2.2"/>
+      <polygon points="585,430 785,430 808,505 562,505" fill="url(#cvWood)" stroke="#6b5436" stroke-width="2.2"/>
+      <!-- podium -->
+      <polygon points="468,520 532,520 545,560 455,560" fill="url(#cvWood)" stroke="#6b5436" stroke-width="2"/>
+    </svg>
+    <div id="cv-figures"></div>
   </div>
 </div>
 
@@ -604,6 +731,7 @@ function updateTTSLabel(){
 function getVoice(hints){if(!voices.length)voices=window.speechSynthesis.getVoices();for(const h of hints){const v=voices.find(v=>v.name.includes(h)||v.lang.startsWith(h));if(v)return v;}return voices.find(v=>v.lang.startsWith('en'))||voices[0]||null;}
 function _detachUtt(){if(_spkUtt){_spkUtt.onend=null;_spkUtt.onboundary=null;_spkUtt=null;}}
 function speak(text,profileKey,onEnd){
+  if(typeof SET!=='undefined'&&!SET.autoread){if(onEnd)onEnd();return;}
   _detachUtt();window.speechSynthesis.cancel();
   _spkText=(text||'').substring(0,700);_spkProfile=profileKey;_spkOnEnd=onEnd||null;_spkOffset=0;_spkActive=true;
   _speakFrom(0);
@@ -651,7 +779,8 @@ async function startTrial(){
   S.role=getv('role');S.diff=getv('diff');S.ollamaModel=document.getElementById('ollama-model-input').value.trim()||'llama3';
   CASE.evidence.forEach(e=>{S.evidenceState[e.id]='pending';});
   document.getElementById('setup-screen').style.display='none';
-  buildCharList();buildEvidenceList();buildQuickObj();buildDocTabs();initNotes();updatePhaseUI();enableButtons();
+  buildCharList();buildEvidenceList();buildQuickObj();buildDocTabs();initNotes();loadSettings();updatePhaseUI();enableButtons();
+  tutorial('welcome',null,'Welcome to your trial','You are the '+S.role+'. Type or click 🎤 Speak to make your statements. Object using the buttons or the chips on the right. Open 🏛 Courtroom for a full-screen view with speech bubbles, and ⚙ Settings to toggle tutorials and the objection-training Spotter.');
   await checkOllama();
   await beginTrial();
 }
@@ -847,7 +976,7 @@ function updatePhaseUI(){
   document.querySelectorAll('.qobj-chip').forEach(c=>c.disabled=!examPhase);
   renderWitnessCard();
 }
-function enableButtons(){['btn-obj','btn-next','btn-coach','btn-mic','btn-docs','btn-rules','btn-pretrial','send-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});}
+function enableButtons(){['btn-obj','btn-next','btn-coach','btn-mic','btn-court','btn-docs','btn-rules','btn-pretrial','send-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});}
 function setButtons(d){['btn-obj','btn-next','btn-coach','btn-mic','btn-rules','btn-pretrial','send-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=d;});}
 
 // ═══════════ TRANSCRIPT ═══════════
@@ -856,6 +985,7 @@ function addEntry(label,cssRole,text){
   const div=document.createElement('div');div.className='t-entry';
   div.innerHTML=`<div class="t-speaker ${cssRole}">${label}</div><div class="t-text ${cssRole}">${text}</div>`;
   t.appendChild(div);t.scrollTop=t.scrollHeight;
+  if(cssRole!=='system')cvSpeak(cssRole,text,label);
 }
 let typingEl=null;
 function showTyping(){hideTyping();const t=document.getElementById('transcript');typingEl=document.createElement('div');typingEl.className='t-entry';typingEl.innerHTML=`<div class="t-speaker system">…</div><div class="typing-dots"><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></div>`;t.appendChild(typingEl);t.scrollTop=t.scrollHeight;}
@@ -901,8 +1031,8 @@ function parseAndDisplay(text){
   if(judgeMatch&&/sustained|overruled/i.test(clean))addObjLog(/sustained/i.test(clean)?'Sustained':'Overruled',clean.split('.')[0]);
   if(coachMatch){const cb=document.getElementById('coaching-box');cb.style.display='block';cb.innerHTML='<strong>\u{1F4A1} Coaching:</strong> '+clean;setSpeaking(null);return;}
   if(judgeMatch){addEntry('JUDGE','judge',clean);setSpeaking('judge');speak(clean,'judge',()=>setSpeaking(null));return;}
-  if(witnessMatch){const charId=S.currentWitnessKey||'wp0';const w=getCurrentWitness();addEntry('WITNESS: '+witnessMatch[1].trim(),'witness',clean);setSpeaking(charId);speak(clean,w?.voiceKey||'witness0p',()=>setSpeaking(null));return;}
-  if(attyMatch){const side=attyMatch[1].toLowerCase();addEntry(side.toUpperCase()+' ATTORNEY',side,clean);setSpeaking('aiatty');speak(clean,side,()=>setSpeaking(null));return;}
+  if(witnessMatch){const charId=S.currentWitnessKey||'wp0';const w=getCurrentWitness();addEntry('WITNESS: '+witnessMatch[1].trim(),'witness',clean);setSpeaking(charId);speak(clean,w?.voiceKey||'witness0p',()=>setSpeaking(null));runSpotter(clean);return;}
+  if(attyMatch){const side=attyMatch[1].toLowerCase();addEntry(side.toUpperCase()+' ATTORNEY',side,clean);setSpeaking('aiatty');speak(clean,side,()=>setSpeaking(null));if(side!==S.role)runSpotter(clean);return;}
   addEntry('COURT','judge',clean);setSpeaking('judge');speak(clean,'judge',()=>setSpeaking(null));
 }
 
@@ -917,6 +1047,7 @@ async function beginTrial(){
 async function sendMsg(){const inp=document.getElementById('user-input');const text=inp.value.trim();if(!text||S.loading)return;document.getElementById('coaching-box').style.display='none';inp.value='';inp.style.height='auto';processUserInput(text);}
 async function processUserInput(text){
   if(S.loading)return;
+  clearSpotter();
   setSpeaking('youatty');addEntry(S.role.toUpperCase()+' ATTORNEY (YOU)','you',text);speak(text,S.role,()=>setSpeaking(null));
   S.history.push({role:'user',content:text});S.loading=true;setButtons(true);showTyping();
   try{const resp=await callOllama(text);S.history.push({role:'assistant',content:resp});parseAndDisplay(resp);}
@@ -1013,6 +1144,110 @@ function renderWitnessCard(){
   <button onclick="openDoc('case')" title="Open the full affidavits PDF in split view" style="margin-top:7px;font-size:9px;font-weight:700;letter-spacing:.04em;padding:4px 8px;border-radius:7px;border:1px solid #2a5a4f;background:rgba(143,212,196,.08);color:#8fd4c4;cursor:pointer;font-family:'Inter',sans-serif">📄 Full affidavit</button>`;
 }
 function initNotes(){const n=document.getElementById('notes-pad');if(!n)return;try{n.value=localStorage.getItem('mt_notes')||'';}catch(e){}n.addEventListener('input',()=>{try{localStorage.setItem('mt_notes',n.value);}catch(e){}});}
+
+// ═══════════ SETTINGS ═══════════
+let SET={tutorials:true,spotter:true,autoread:true};
+function loadSettings(){
+  try{SET=Object.assign(SET,JSON.parse(localStorage.getItem('mt_settings')||'{}'));}catch(e){}
+  const t=document.getElementById('set-tutorials'),s=document.getElementById('set-spotter'),a=document.getElementById('set-autoread');
+  if(t)t.checked=SET.tutorials;if(s)s.checked=SET.spotter;if(a)a.checked=SET.autoread;
+}
+function saveSettings(){
+  SET.tutorials=document.getElementById('set-tutorials').checked;
+  SET.spotter=document.getElementById('set-spotter').checked;
+  SET.autoread=document.getElementById('set-autoread').checked;
+  try{localStorage.setItem('mt_settings',JSON.stringify(SET));}catch(e){}
+  if(!SET.spotter){const h=document.getElementById('spotter-hint');if(h)h.style.display='none';document.querySelectorAll('.qobj-chip.pulse').forEach(c=>c.classList.remove('pulse'));}
+  if(!SET.autoread)window.speechSynthesis.cancel();
+}
+function openSettings(){document.getElementById('settings-overlay').classList.add('open');}
+function closeSettings(){document.getElementById('settings-overlay').classList.remove('open');}
+
+// ═══════════ TUTORIALS (coach-marks) ═══════════
+function tutSeen(k){try{return (localStorage.getItem('mt_tut')||'').split(',').includes(k);}catch(e){return false;}}
+function tutMark(k){try{const s=(localStorage.getItem('mt_tut')||'').split(',').filter(Boolean);if(!s.includes(k)){s.push(k);localStorage.setItem('mt_tut',s.join(','));}}catch(e){}}
+function tutorial(key,targetSel,title,body){
+  if(!SET.tutorials||tutSeen(key))return;
+  const pop=document.getElementById('tut-pop');if(!pop)return;
+  pop.innerHTML=`<span class="tt">${title}</span>${body}<div class="tut-next"><button onclick="closeTut()">Got it</button></div>`;
+  pop.style.display='block';pop.style.transform='';
+  const t=targetSel&&document.querySelector(targetSel);
+  if(t){const r=t.getBoundingClientRect();pop.style.left=Math.max(10,Math.min(r.left,window.innerWidth-300))+'px';pop.style.top=Math.min(r.bottom+8,window.innerHeight-170)+'px';}
+  else{pop.style.left='50%';pop.style.top='50%';pop.style.transform='translate(-50%,-50%)';}
+  tutMark(key);
+}
+function closeTut(){const p=document.getElementById('tut-pop');p.style.display='none';p.style.transform='';}
+
+// ═══════════ OBJECTION SPOTTER (training) ═══════════
+const SPOT_TESTS=[
+  {rx:/\b(he said|she said|they said|told me|told (her|him|them)|i heard that|i was told|according to (him|her|them|what)|said to me)\b/i,i:1,name:'Hearsay'},
+  {rx:/\b(i think|i believe|i guess|i assume|i suppose|i imagine|probably|must have been|might have been|in my opinion|seemed like)\b/i,i:2,name:'Speculation / opinion'},
+  {rx:/(isn'?t it true|isn'?t that (right|correct|true)|wasn'?t it|didn'?t you|don'?t you|aren'?t you|wouldn'?t you|, correct\?|, right\?|you would agree|you agree that)/i,i:0,name:'Leading'},
+  {rx:/\b(violent|aggressive|dishonest|a liar|known to be|bad person|criminal type|always lies|the type of person)\b/i,i:12,name:'Character evidence'},
+  {rx:/\b(tell (us|me|the court) (everything|what happened|the whole|about your)|in your own words|walk (us|me|the court) through)\b/i,i:5,name:'Narrative'}
+];
+function runSpotter(text){
+  const hint=document.getElementById('spotter-hint');if(!hint)return;
+  if(!SET.spotter){hint.style.display='none';return;}
+  const hits=[];SPOT_TESTS.forEach(t=>{if(t.rx.test(text))hits.push(t);});
+  const uniq=[...new Map(hits.map(h=>[h.i,h])).values()];
+  document.querySelectorAll('.qobj-chip.pulse').forEach(c=>c.classList.remove('pulse'));
+  if(!uniq.length){hint.style.display='none';return;}
+  hint.style.display='block';
+  hint.innerHTML='🎯 <b>Objection opportunity:</b> '+uniq.map(h=>h.name).join(' · ')+'. Spot the pattern — then raise it.';
+  uniq.forEach(h=>{const chip=document.querySelectorAll('.qobj-chip')[h.i];if(chip)chip.classList.add('pulse');});
+  tutorial('spotter','#spotter-hint','Objection Spotter','When the other side says something objectionable, this highlights the moment and pulses the matching chip on the right. Learn the patterns, then click the chip (or type) to object. Toggle it in ⚙ Settings.');
+}
+function clearSpotter(){const h=document.getElementById('spotter-hint');if(h)h.style.display='none';document.querySelectorAll('.qobj-chip.pulse').forEach(c=>c.classList.remove('pulse'));}
+
+// ═══════════ FULL-SCREEN COURTROOM VIEW ═══════════
+const CV_PERSON='<svg class="cv-person" viewBox="0 0 40 56"><circle cx="20" cy="13" r="9"/><path d="M5 55 C5 35 12 27 20 27 C28 27 35 35 35 55"/></svg>';
+const CV_FIG=[
+  {id:'judge',label:'Judge',x:50,y:21},
+  {id:'witness',label:'Witness',x:73,y:31},
+  {id:'jury',label:'Jury / Evaluator',x:13,y:43,jury:true},
+  {id:'pros',label:'Prosecution',x:31,y:62},
+  {id:'def',label:'Defense',x:69,y:62}
+];
+let cvOpen=false,_lastSpeak=null;
+function buildCourtroom(){
+  const c=document.getElementById('cv-figures');if(!c)return;
+  c.innerHTML=CV_FIG.map(f=>`<div class="cv-figure" id="cvf-${f.id}" style="left:${f.x}%;top:${f.y}%">
+    <div class="cv-bubble"><span class="cv-sp"></span><span class="cv-tx"></span></div>
+    ${f.jury?'<div class="cv-jury">'+CV_PERSON.repeat(5)+'</div>':CV_PERSON}
+    <div class="cv-label" id="cvlbl-${f.id}">${f.label}</div>
+  </div>`).join('');
+}
+function cvFigFor(cssRole){
+  if(cssRole==='judge')return'judge';
+  if(cssRole==='witness')return'witness';
+  if(cssRole==='you')return S.role==='prosecution'?'pros':'def';
+  if(cssRole==='prosecution')return'pros';
+  if(cssRole==='defense')return'def';
+  return null;
+}
+function cvSpeak(cssRole,text,label){
+  _lastSpeak={role:cssRole,text:text,label:label};
+  if(!cvOpen)return;
+  document.querySelectorAll('.cv-figure').forEach(f=>f.classList.remove('speaking'));
+  const fig=cvFigFor(cssRole);if(!fig)return;
+  const el=document.getElementById('cvf-'+fig);if(!el)return;
+  el.querySelector('.cv-sp').textContent=label||cssRole.toUpperCase();
+  el.querySelector('.cv-tx').textContent=text;
+  el.classList.add('speaking');
+}
+function enterCourtroom(){
+  buildCourtroom();
+  const youPros=S.role==='prosecution';
+  const pl=document.getElementById('cvlbl-pros'),dl=document.getElementById('cvlbl-def');
+  if(pl)pl.textContent=youPros?'You (Prosecution)':'Prosecution (AI)';
+  if(dl)dl.textContent=youPros?'Defense (AI)':'You (Defense)';
+  document.getElementById('courtroom-view').classList.add('open');
+  cvOpen=true;
+  if(_lastSpeak)cvSpeak(_lastSpeak.role,_lastSpeak.text,_lastSpeak.label);
+  tutorial('courtroom',null,'Welcome to the courtroom','Each figure lights up and a speech bubble appears when they speak. You can still pull up Evidence, Affidavits, Rules, and the Objections guide from the top bar. Press “Exit to Transcript” to go back.');
+}
+function exitCourtroom(){document.getElementById('courtroom-view').classList.remove('open');cvOpen=false;}
 (function(){const div=document.getElementById('doc-divider'),pane=document.getElementById('doc-pane'),wrap=document.getElementById('transcript-wrap');if(!div)return;let dragging=false;
   div.addEventListener('pointerdown',e=>{dragging=true;try{div.setPointerCapture(e.pointerId);}catch(_){}document.body.style.userSelect='none';});
   div.addEventListener('pointermove',e=>{if(!dragging)return;const r=wrap.getBoundingClientRect();let w=r.right-e.clientX;w=Math.max(300,Math.min(r.width-280,w));pane.style.width=w+'px';});
