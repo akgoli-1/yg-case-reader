@@ -930,7 +930,7 @@ const CASE = {
 
 // ═══════════ TTS ═══════════
 let voices=[], ttsRate=1.0;
-let _spkText='',_spkProfile='judge',_spkOnEnd=null,_spkOffset=0,_spkActive=false,_spkUtt=null,_rateTimer=null;
+let _spkQueue=[],_spkProfile='judge',_spkOnEnd=null,_spkActive=false,_spkUtt=null;
 window.speechSynthesis.onvoiceschanged=()=>{voices=window.speechSynthesis.getVoices()};
 setTimeout(()=>{voices=window.speechSynthesis.getVoices()},600);
 const VPROF={
@@ -947,33 +947,51 @@ const VPROF={
 function updateTTSLabel(){
   ttsRate=parseFloat(document.getElementById('tts-speed').value);
   document.getElementById('tts-label').textContent=ttsRate.toFixed(1)+'×';
-  // Apply the new rate to speech already in progress (debounced so dragging is smooth)
-  if(_spkActive){clearTimeout(_rateTimer);_rateTimer=setTimeout(restartSpeechAtNewRate,200);}
+  // Speech plays in small chunks, so the next chunk automatically uses the new
+  // rate — the change is applied live with no cancel/restart, nothing to break.
 }
 function getVoice(hints){if(!voices.length)voices=window.speechSynthesis.getVoices();for(const h of hints){const v=voices.find(v=>v.name.includes(h)||v.lang.startsWith(h));if(v)return v;}return voices.find(v=>v.lang.startsWith('en'))||voices[0]||null;}
-function _detachUtt(){if(_spkUtt){_spkUtt.onend=null;_spkUtt.onboundary=null;_spkUtt=null;}}
+function _detachUtt(){if(_spkUtt){_spkUtt.onend=null;_spkUtt.onerror=null;_spkUtt=null;}}
+// Break text into short chunks so each one starts at the CURRENT speed.
+// Changing the slider mid-speech is then seamless: the next chunk just uses the
+// new rate. We never cancel a playing utterance, so it can't glitch or break.
+function _chunkText(text){
+  const clean=(text||'').replace(/\s+/g,' ').trim().substring(0,2000);
+  if(!clean)return [];
+  const sentences=clean.match(/[^.!?…]+[.!?…]*/g)||[clean];
+  const out=[],CAP=70;
+  sentences.forEach(sentRaw=>{
+    const sent=sentRaw.trim();if(!sent)return;
+    if(sent.length<=CAP){out.push(sent);return;}
+    let cur='';
+    sent.split(/(?<=[,;:])\s+/).forEach(p=>{
+      let piece=p;
+      while(piece.length>CAP){let cut=piece.lastIndexOf(' ',CAP);if(cut<=0)cut=CAP;if(cur){out.push(cur.trim());cur='';}out.push(piece.slice(0,cut).trim());piece=piece.slice(cut);}
+      if((cur+' '+piece).trim().length>CAP&&cur){out.push(cur.trim());cur=piece;}
+      else cur=(cur?cur+' ':'')+piece;
+    });
+    if(cur.trim())out.push(cur.trim());
+  });
+  return out.filter(Boolean);
+}
 function speak(text,profileKey,onEnd){
   if(typeof SET!=='undefined'&&!SET.autoread){if(onEnd)onEnd();return;}
   _detachUtt();window.speechSynthesis.cancel();
-  _spkText=(text||'').substring(0,700);_spkProfile=profileKey;_spkOnEnd=onEnd||null;_spkOffset=0;_spkActive=true;
-  _speakFrom(0);
+  _spkProfile=profileKey;_spkOnEnd=onEnd||null;_spkActive=true;
+  _spkQueue=_chunkText(text);
+  _speakNext();
 }
-function _speakFrom(offset){
-  const prof=VPROF[_spkProfile]||VPROF.judge;
-  const remaining=_spkText.substring(offset);
-  if(!remaining.trim()){_spkActive=false;const cb=_spkOnEnd;_spkOnEnd=null;if(cb)cb();return;}
-  const utt=new SpeechSynthesisUtterance(remaining);
-  utt.voice=getVoice(prof.hints);utt.pitch=prof.pitch;utt.rate=Math.max(0.1,Math.min(10,ttsRate));utt.volume=1;
-  // Track read position so a mid-speech rate change can resume from here
-  utt.onboundary=(e)=>{if(typeof e.charIndex==='number')_spkOffset=offset+e.charIndex;};
-  utt.onend=()=>{_spkUtt=null;_spkActive=false;const cb=_spkOnEnd;_spkOnEnd=null;if(cb)cb();};
-  _spkUtt=utt;
-  window.speechSynthesis.speak(utt);
-}
-function restartSpeechAtNewRate(){
+function _speakNext(){
   if(!_spkActive)return;
-  _detachUtt();window.speechSynthesis.cancel();
-  _speakFrom(_spkOffset);
+  if(!_spkQueue.length){_spkActive=false;const cb=_spkOnEnd;_spkOnEnd=null;if(cb)cb();return;}
+  const chunk=_spkQueue.shift();
+  const prof=VPROF[_spkProfile]||VPROF.judge;
+  const utt=new SpeechSynthesisUtterance(chunk);
+  utt.voice=getVoice(prof.hints);utt.pitch=prof.pitch;utt.rate=Math.max(0.1,Math.min(10,ttsRate));utt.volume=1;
+  utt.onend=()=>{if(_spkUtt===utt){_spkUtt=null;_speakNext();}};
+  utt.onerror=()=>{if(_spkUtt===utt){_spkUtt=null;_speakNext();}};
+  _spkUtt=utt;
+  try{window.speechSynthesis.speak(utt);}catch(e){_spkUtt=null;_speakNext();}
 }
 
 // ═══════════ STATE ═══════════
@@ -1540,7 +1558,7 @@ function exportTranscript(){if(!transcriptLog.length){toast('Nothing to export y
 function copyTranscript(){if(!transcriptLog.length){toast('Nothing to copy yet');return;}const txt=transcriptText();if(navigator.clipboard){navigator.clipboard.writeText(txt).then(()=>toast('Transcript copied')).catch(()=>toast('Copy blocked by browser'));}else toast('Clipboard unavailable');}
 function scrollLatest(){const t=document.getElementById('transcript');t.scrollTop=t.scrollHeight;const b=document.getElementById('to-latest');if(b)b.classList.remove('show');}
 // voice + timer
-function stopVoice(){try{window.speechSynthesis.cancel();}catch(e){}_spkActive=false;setSpeaking(null);}
+function stopVoice(){_spkActive=false;_spkQueue=[];_detachUtt();try{window.speechSynthesis.cancel();}catch(e){}setSpeaking(null);}
 const PHASE_LIMIT={opening:120,direct1:360,direct2:360,direct3:360,cross1:300,cross2:300,cross3:300,closing:180,verdict:240};
 function startTimer(){phaseStart=Date.now();window._tphase=S.phase;if(timerInt)clearInterval(timerInt);timerInt=setInterval(tickTimer,1000);tickTimer();}
 function tickTimer(){const el=document.getElementById('phase-timer');if(!el)return;const s=Math.max(0,Math.floor((Date.now()-phaseStart)/1000));const lim=PHASE_LIMIT[S.phase]||0;const fmt=x=>Math.floor(x/60)+':'+String(x%60).padStart(2,'0');el.textContent='⏱ '+fmt(s)+(lim?(' / '+fmt(lim)):'');el.classList.toggle('over',!!lim&&s>lim);}
