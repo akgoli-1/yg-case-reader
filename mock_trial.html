@@ -1119,11 +1119,12 @@ const FLOW=[
   {id:'d_w3_x',label:'D·W3 Cross',kind:'cross',examiner:'prosecution',wside:'defense',slot:2},
   {id:'p_close',label:'P. Closing',kind:'closing',actor:'prosecution'},
   {id:'d_close',label:'D. Closing',kind:'closing',actor:'defense'},
+  {id:'p_rebuttal',label:'P. Rebuttal',kind:'rebuttal',actor:'prosecution'},
   {id:'verdict',label:'Verdict',kind:'verdict'}
 ];
 const PHASES=FLOW.map(f=>f.id);
 function flow(id){return FLOW.find(f=>f.id===(id||S.phase))||null;}
-function userActive(f){if(!f)return false;if(f.kind==='opening'||f.kind==='closing')return f.actor===S.role;if(f.kind==='direct'||f.kind==='cross')return f.examiner===S.role;return false;}
+function userActive(f){if(!f)return false;if(f.kind==='opening'||f.kind==='closing'||f.kind==='rebuttal')return f.actor===S.role;if(f.kind==='direct'||f.kind==='cross')return f.examiner===S.role;return false;}
 function phaseWitnessKey(f){if(!f||(f.kind!=='direct'&&f.kind!=='cross'))return null;const prefix=f.wside==='prosecution'?'wp':'wd';const slotId=f.wside+f.slot;if(f.kind==='direct'&&!S.slotWitness[slotId])S.slotWitness[slotId]=prefix+f.slot;return S.slotWitness[slotId]||(prefix+f.slot);}
 function buildPhaseTrack(){const c=document.getElementById('phase-track');if(!c)return;c.innerHTML='<button id="pt-toggle" onclick="togglePhaseTrack()" title="Show all phases — click any to jump there"><span class="pt-chev">▸</span><span id="pt-current">—</span></button><div id="pt-steps">'+FLOW.map((f,i)=>(i?'<div class="pt-sep">›</div>':'')+`<div class="pt-step" id="pt-${f.id}">${f.label}</div>`).join('')+'</div>';bindPhaseSkip();}
 function togglePhaseTrack(){const t=document.getElementById('phase-track');if(t)t.classList.toggle('expanded');}
@@ -1132,6 +1133,7 @@ function phaseGuide(f){
   if(f.kind==='pretrial')return 'Pre-trial motions & stipulations. Click the "Pre-Trial" button to open the conference.';
   if(f.kind==='opening'){const yours=f.actor===S.role;return (f.actor==='prosecution'?'Prosecution':'Defense')+' opening (2 min). '+(yours?'"May it please the court…" Preview your case & witnesses. NO objections.':'Opposing counsel opens — no objections. Press "Next" or type "continue".');}
   if(f.kind==='closing'){const yours=f.actor===S.role;return (f.actor==='prosecution'?'Prosecution':'Defense')+' closing (3 min). '+(yours?'Argue what was actually proven. NO objections.':'Opposing closing — no objections. Press "Next" or type "continue".');}
+  if(f.kind==='rebuttal'){const yours=f.actor===S.role;return 'Prosecution rebuttal — your reserved/remaining time, the final word answering the defense closing. NO objections.'+(yours?'':' Press "Next" or type "continue".');}
   if(f.kind==='direct'){const yours=f.examiner===S.role;return yours?'YOUR direct — OPEN questions only, NO leading. Pick which of your witnesses at left.':'Opposing counsel directs their witness. Only the witness answers — you may OBJECT, or type "continue".';}
   if(f.kind==='cross'){const yours=f.examiner===S.role;return yours?'YOUR cross — LEADING questions only ("Isn\'t it true that…"). Attack bias & contradictions.':'Opposing counsel crosses the witness. Only the witness answers — you may OBJECT, or type "continue".';}
   if(f.kind==='verdict')return 'The judge deliberates and evaluates your performance.';
@@ -1381,9 +1383,10 @@ function buildSystem(){
   let phaseInstr='';
   if(f){
     const EXAM_RULES=`STRICT EXAMINATION RULES: only the witness (${curW?curW.name:'the witness'}) answers questions — in first person, 1-3 sentences, bound strictly to their own affidavit, never volunteering beyond it. The attorney who is NOT examining must STAY SILENT and may speak ONLY to make a short objection (e.g. "[${aiRole.toUpperCase()} ATTORNEY] Objection, hearsay."). NEVER have a non-examining attorney answer a question or add commentary. The JUDGE speaks only to rule on objections (one sentence).`;
-    if(f.kind==='opening'||f.kind==='closing'){
+    if(f.kind==='opening'||f.kind==='closing'||f.kind==='rebuttal'){
       const yours=f.actor===S.role;
-      phaseInstr=`CURRENT PHASE: ${f.actor.toUpperCase()} ${f.kind.toUpperCase()}. `+(yours
+      const extra=f.kind==='rebuttal'?' This is the prosecution rebuttal — the final word, responding to the defense closing.':'';
+      phaseInstr=`CURRENT PHASE: ${f.actor.toUpperCase()} ${f.kind.toUpperCase()}.${extra} `+(yours
         ? `The USER (${f.actor}) delivers it. Do NOT speak for them. As [JUDGE] give at most a one-line acknowledgement. The opposing attorney does NOT speak. No objections during ${f.kind}s.`
         : `YOU (the ${f.actor} attorney) deliver this ${f.kind} as [${f.actor.toUpperCase()} ATTORNEY], 2-3 paragraphs. No objections during ${f.kind}s.`);
     } else if(f.kind==='direct'||f.kind==='cross'){
@@ -1493,10 +1496,11 @@ async function nextPhase(){
 async function runPhaseTransition(f){
   const yours=userActive(f);const curW=getCurrentWitness();
   let prompt;
-  if(f.kind==='opening'||f.kind==='closing'){
+  if(f.kind==='opening'||f.kind==='closing'||f.kind==='rebuttal'){
+    const kw=f.kind==='rebuttal'?'rebuttal (the final word, responding to the defense closing)':f.kind;
     prompt=yours
-      ? `It is now the ${f.actor} ${f.kind}, delivered by the USER. As [JUDGE], invite the ${f.actor} to deliver their ${f.kind} in one sentence.`
-      : `It is now the ${f.actor} ${f.kind}. Deliver it yourself as [${f.actor.toUpperCase()} ATTORNEY] in 2-3 paragraphs.`;
+      ? `It is now the ${f.actor} ${kw}, delivered by the USER. As [JUDGE], invite the ${f.actor} to deliver their ${f.kind} in one sentence.`
+      : `It is now the ${f.actor} ${kw}. Deliver it yourself as [${f.actor.toUpperCase()} ATTORNEY] in 2-3 paragraphs.`;
   } else {
     prompt=yours
       ? `It is now the ${f.kind} of ${curW?curW.name:'the witness'}, conducted by the USER (${f.examiner}). As [JUDGE], note the witness is sworn and invite the ${f.examiner} to proceed, in one sentence.`
@@ -1778,7 +1782,7 @@ function copyTranscript(){if(!transcriptLog.length){toast('Nothing to copy yet')
 function scrollLatest(){const t=document.getElementById('transcript');t.scrollTop=t.scrollHeight;const b=document.getElementById('to-latest');if(b)b.classList.remove('show');}
 // voice + timer
 function stopVoice(){_spkActive=false;_spkQueue=[];_detachUtt();try{window.speechSynthesis.cancel();}catch(e){}setSpeaking(null);}
-const PHASE_LIMIT={opening:120,direct:300,cross:240,closing:180,verdict:240};
+const PHASE_LIMIT={opening:120,direct:300,cross:240,closing:180,rebuttal:60,verdict:240};
 function startTimer(){phaseStart=Date.now();window._tphase=S.phase;if(timerInt)clearInterval(timerInt);timerInt=setInterval(tickTimer,1000);tickTimer();}
 function tickTimer(){const el=document.getElementById('phase-timer');if(!el)return;const s=Math.max(0,Math.floor((Date.now()-phaseStart)/1000));const f=flow();const lim=(f&&PHASE_LIMIT[f.kind])||0;const fmt=x=>Math.floor(x/60)+':'+String(x%60).padStart(2,'0');el.textContent='⏱ '+fmt(s)+(lim?(' / '+fmt(lim)):'');el.classList.toggle('over',!!lim&&s>lim);}
 // shortcuts
