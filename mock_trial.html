@@ -603,6 +603,24 @@ body{
 #phase-track.expanded #pt-toggle .pt-chev{transform:rotate(90deg)}
 #pt-steps{display:none;width:100%;overflow-x:auto;align-items:center;padding-bottom:7px}
 #phase-track.expanded #pt-steps{display:flex}
+
+/* "More" actions popover above the input */
+#more-menu{display:none;position:fixed;z-index:120;background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:6px;box-shadow:0 16px 44px rgba(0,0,0,.6);min-width:220px}
+#more-menu.open{display:flex;flex-direction:column;gap:2px}
+.more-item{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600;color:var(--text);background:none;border:none;border-radius:8px;padding:10px 11px;cursor:pointer;text-align:left;font-family:'Inter',sans-serif;transition:background .12s}
+.more-item:hover{background:rgba(77,141,246,.1)}
+.more-item:disabled{opacity:.4;cursor:not-allowed}
+.more-item .mi-key{margin-left:auto;font-size:9px;font-weight:700;color:var(--text-muted);background:var(--surface2);border:1px solid var(--border2);border-radius:4px;padding:1px 5px}
+
+/* Evidence opens the full modal instead of crowding the panel */
+.panel-open-btn{display:flex;align-items:center;gap:8px;width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;padding:11px 12px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .12s}
+.panel-open-btn:hover{border-color:var(--gold-dim);background:rgba(77,141,246,.07)}
+.panel-open-btn .po-sub{font-weight:400;color:var(--text-muted);font-size:10px}
+.panel-open-btn .po-arrow{margin-left:auto;color:var(--text-dim)}
+.ex-badge{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 6px;border-radius:5px;margin-right:4px;vertical-align:middle}
+.ex-badge.pending{background:rgba(93,111,147,.22);color:var(--text-dim)}
+.ex-badge.admitted{background:rgba(70,192,138,.16);color:var(--witness)}
+.ex-badge.excluded{background:rgba(224,121,95,.16);color:var(--prosecution)}
 </style>
 </head>
 <body>
@@ -731,11 +749,14 @@ body{
           <button class="act-btn next" id="btn-next" onclick="nextPhase()" title="Advance to the next phase (N)" disabled>Next →</button>
           <span class="act-spacer"></span>
           <button class="act-btn mic icon" id="btn-mic" onclick="toggleMic()" title="Speak — speech-to-text, click to start/stop, won't auto-send (M)" disabled>🎤</button>
-          <button class="act-btn coach icon" id="btn-coach" onclick="getCoaching()" title="Coaching — strategic advice (C)" disabled>💡</button>
-          <button class="act-btn court icon" id="btn-court" onclick="enterCourtroom()" title="Full-screen courtroom view (K)" disabled>🏛</button>
-          <button class="act-btn docs icon" id="btn-docs" onclick="toggleSplit()" title="Documents — split-screen the real case PDFs (D)" disabled>📑</button>
-          <button class="act-btn rules icon" id="btn-rules" onclick="openModal('rules')" title="Rules, exhibits & objection guide (R)" disabled>📋</button>
-          <button class="act-btn pretrial icon" id="btn-pretrial" onclick="openPretrial()" title="Pre-Trial conference" disabled>⚖️</button>
+          <button class="act-btn icon" id="btn-more" onclick="toggleMore(event)" title="More — coaching, courtroom, documents, rules, pre-trial" disabled>⋯</button>
+        </div>
+        <div id="more-menu">
+          <button class="more-item" id="btn-coach" onclick="getCoaching();closeMore()">💡 Coaching <span class="mi-key">C</span></button>
+          <button class="more-item" id="btn-court" onclick="enterCourtroom();closeMore()">🏛 Courtroom view <span class="mi-key">K</span></button>
+          <button class="more-item" id="btn-docs" onclick="toggleSplit();closeMore()">📑 Documents (PDFs) <span class="mi-key">D</span></button>
+          <button class="more-item" id="btn-rules" onclick="openModal('rules');closeMore()">📋 Rules &amp; objections <span class="mi-key">R</span></button>
+          <button class="more-item" id="btn-pretrial" onclick="openPretrial();closeMore()">⚖️ Pre-Trial conference</button>
         </div>
         <div id="text-row">
           <textarea id="user-input" placeholder="Type here, or click 🎤 Speak to dictate live. Enter to send · Shift+Enter for a new line." rows="2"></textarea>
@@ -764,8 +785,7 @@ body{
       <div id="quick-obj"></div>
     </div>
     <div class="panel-section" id="evidence-section">
-      <div class="panel-label" style="display:flex;justify-content:space-between;align-items:center;gap:6px">Evidence <button onclick="openDoc('exhibits')" title="Open the real Exhibits PDF in split view" style="font-size:9px;font-weight:700;letter-spacing:.04em;padding:3px 7px;border-radius:7px;border:1px solid #2a5a4f;background:rgba(143,212,196,.08);color:#8fd4c4;cursor:pointer;font-family:'Inter',sans-serif">📄 PDF</button></div>
-      <div id="evidence-list"></div>
+      <button class="panel-open-btn" onclick="openModal('exhibits')" title="Open all 13 exhibits with full text, status & PDFs">📁 <span>Evidence</span> <span class="po-sub" id="ev-count">13 exhibits</span> <span class="po-arrow">↗</span></button>
     </div>
     <div class="panel-section" id="objlog-section">
       <div class="panel-label">Objections Log</div>
@@ -1169,20 +1189,27 @@ function highlightCourtroom(charId){
 
 // ═══════════ EVIDENCE LIST ═══════════
 function buildEvidenceList(){
-  document.getElementById('evidence-list').innerHTML=CASE.evidence.map(e=>`
-    <div class="evidence-item pending" id="ev-${e.id}" onclick="showExhibit('${e.id}')">
+  const el=document.getElementById('evidence-list');
+  if(el)el.innerHTML=CASE.evidence.map(e=>`
+    <div class="evidence-item ${S.evidenceState[e.id]||'pending'}" id="ev-${e.id}" onclick="showExhibit('${e.id}')">
       <div class="ev-name">Ex. ${e.num}: ${e.name}</div>
       <div class="ev-desc" style="font-size:9px;color:var(--text-muted);margin-bottom:1px">${e.desc}</div>
-      <div class="ev-status">Pending</div>
+      <div class="ev-status">${(S.evidenceState[e.id]||'pending').replace(/^./,c=>c.toUpperCase())}</div>
     </div>`).join('');
+  updateEvCount();
 }
+function updateEvCount(){const c=document.getElementById('ev-count');if(!c)return;const vals=Object.values(S.evidenceState||{});const adm=vals.filter(v=>v==='admitted').length,exc=vals.filter(v=>v==='excluded').length;c.textContent=(adm||exc)?(adm+' admitted'+(exc?' · '+exc+' excluded':'')):(CASE.evidence.length+' exhibits');}
 function updateEvidence(evId,status){
-  S.evidenceState[evId]=status;
+  S.evidenceState[evId]=status;updateEvCount();
   const el=document.getElementById('ev-'+evId);
   if(!el)return;
   el.className='evidence-item '+status;
   el.querySelector('.ev-status').textContent=status.charAt(0).toUpperCase()+status.slice(1);
 }
+// More-actions popover (declutters the bar above the input)
+function toggleMore(e){const m=document.getElementById('more-menu'),b=document.getElementById('btn-more');if(!m||!b)return;if(m.classList.contains('open')){m.classList.remove('open');return;}const r=b.getBoundingClientRect();m.style.left=Math.max(10,r.right-230)+'px';m.style.bottom=(window.innerHeight-r.top+8)+'px';m.classList.add('open');if(e)e.stopPropagation();}
+function closeMore(){const m=document.getElementById('more-menu');if(m)m.classList.remove('open');}
+document.addEventListener('click',e=>{const m=document.getElementById('more-menu');if(m&&m.classList.contains('open')&&!m.contains(e.target)&&e.target.id!=='btn-more')closeMore();});
 function showExhibit(evId){
   const e=CASE.evidence.find(x=>x.id===evId);
   if(!e)return;
@@ -1225,7 +1252,7 @@ function renderWitnessesTab(body){
   body.innerHTML=`<h3>Prosecution Witnesses</h3>${CASE.witnesses.prosecution.map(w=>`<div class="ex-block"><div class="ex-title">${w.name} — ${w.role}</div><div class="ex-content">${w.bio}</div></div>`).join('')}<h3>Defense Witnesses</h3>${CASE.witnesses.defense.map(w=>`<div class="ex-block"><div class="ex-title">${w.name} — ${w.role}</div><div class="ex-content">${w.bio}</div></div>`).join('')}`;
 }
 function renderExhibitsTab(body,focusId){
-  body.innerHTML=CASE.evidence.map(e=>`<div class="ex-block" id="modal-ex-${e.id}"><div class="ex-title">Exhibit ${e.num}: ${e.name} <span style="font-size:10px;font-weight:400;color:var(--text-muted)">— ${e.desc}</span></div><div class="ex-content" style="color:var(--text-dim)">${e.content}</div></div>`).join('');
+  body.innerHTML=CASE.evidence.map(e=>{const st=S.evidenceState[e.id]||'pending';return `<div class="ex-block" id="modal-ex-${e.id}"><div class="ex-title">Exhibit ${e.num}: ${e.name} <span class="ex-badge ${st}">${st}</span><span style="font-size:10px;font-weight:400;color:var(--text-muted)"> — ${e.desc}</span></div><div class="ex-content" style="color:var(--text-dim)">${e.content}</div></div>`;}).join('');
   if(focusId){const el=document.getElementById('modal-ex-'+focusId);if(el)setTimeout(()=>el.scrollIntoView({behavior:'smooth'}),50);}
 }
 function renderChargesTab(body){
@@ -1328,7 +1355,7 @@ function updatePhaseUI(){
   renderWitnessCard();
   if(window._tphase!==S.phase){window._tphase=S.phase;phaseStart=Date.now();if(typeof tickTimer==='function')tickTimer();}
 }
-function enableButtons(){['btn-obj','btn-next','btn-coach','btn-mic','btn-court','btn-docs','btn-rules','btn-pretrial','send-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});}
+function enableButtons(){['btn-obj','btn-next','btn-coach','btn-mic','btn-more','btn-court','btn-docs','btn-rules','btn-pretrial','send-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});}
 function setButtons(d){['btn-obj','btn-next','btn-coach','btn-mic','btn-rules','btn-pretrial','send-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=d;});}
 
 // ═══════════ TRANSCRIPT ═══════════
