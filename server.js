@@ -29,10 +29,21 @@ const server = http.createServer((req, res) => {
     res.writeHead(403); res.end('Forbidden'); return;
   }
 
+  const noCache = { 'Cache-Control': 'no-store, no-cache, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0' };
+  const sendApp = () => {
+    // Fallback: serve the app for any unknown path so typos like
+    // /mock_trial (missing .html), trailing slashes, etc. still load it.
+    fs.readFile(path.join(ROOT, 'mock_trial.html'), (e2, html) => {
+      if (e2) { res.writeHead(404, {'Content-Type': 'text/plain'}); res.end('404 Not Found'); return; }
+      res.writeHead(200, Object.assign({ 'Content-Type': MIME['.html'] }, noCache));
+      res.end(html);
+    });
+  };
+
   fs.readFile(filePath, (err, data) => {
-    if (err) { res.writeHead(404, {'Content-Type': 'text/plain'}); res.end('404 Not Found'); return; }
+    if (err) { sendApp(); return; }
     const ext = path.extname(filePath).toLowerCase();
-    res.writeHead(200, {'Content-Type': MIME[ext] || 'application/octet-stream'});
+    res.writeHead(200, Object.assign({ 'Content-Type': MIME[ext] || 'application/octet-stream' }, noCache));
     res.end(data);
   });
 });
