@@ -16,7 +16,7 @@
   --prosecution:#e05a3a;--defense:#4a8fd4;--judge:#b07de0;
   --witness:#4ab870;--you:#d4a843;
 }
-body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:13px;height:100vh;display:grid;grid-template-rows:auto auto 1fr auto;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:13px;height:100vh;display:grid;grid-template-rows:auto auto 1fr;overflow:hidden}
 
 /* HEADER */
 #header{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0}
@@ -44,7 +44,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 .pt-sep{color:var(--text-muted);font-size:9px}
 
 /* MAIN */
-#main{display:grid;grid-template-columns:250px 1fr 230px;overflow:hidden}
+#main{display:flex;overflow:hidden}
 
 /* LEFT PANEL */
 #left-panel{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
@@ -272,6 +272,23 @@ body{background:radial-gradient(1100px 560px at 72% -12%,#17171e 0%,#0d0d0f 58%)
 .modal-pdf-bar{display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 14px;padding-bottom:12px;border-bottom:1px solid var(--border)}
 .modal-pdf-btn{font-size:11px;font-weight:600;padding:6px 11px;border-radius:8px;border:1px solid #2a5a4f;background:rgba(143,212,196,.08);color:#8fd4c4;cursor:pointer;font-family:'Inter',sans-serif;transition:all .12s}
 .modal-pdf-btn:hover{background:rgba(143,212,196,.18);color:#aef0e0}
+
+/* ═══════════ FLEX LAYOUT + COLLAPSIBLE PANELS ═══════════ */
+#left-panel{width:250px;flex-shrink:0}
+#right-panel{width:230px;flex-shrink:0}
+#transcript-wrap{flex:1;min-width:0}
+body.hide-left #left-panel{display:none}
+body.hide-right #right-panel{display:none}
+/* input now lives inside the transcript column, so it moves & resizes with the text */
+#transcript-col #input-area{border-top:1px solid var(--border);border-left:none}
+.hdr-toggle{font-size:10px;font-weight:600;padding:4px 9px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text-dim);cursor:pointer;font-family:'Inter',sans-serif;transition:all .12s;white-space:nowrap}
+.hdr-toggle:hover{border-color:var(--gold-dim);color:var(--text)}
+.hdr-toggle.off{opacity:.5;border-style:dashed}
+/* Left-panel additions */
+#witness-card{font-size:11px}
+#notes-pad{width:100%;min-height:90px;resize:vertical;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:11px;line-height:1.5;padding:8px;outline:none}
+#notes-pad:focus{border-color:var(--gold-dim)}
+#notes-pad::placeholder{color:var(--text-muted)}
 </style>
 </head>
 <body>
@@ -320,6 +337,8 @@ body{background:radial-gradient(1100px 560px at 72% -12%,#17171e 0%,#0d0d0f 58%)
   <h1>⚖️ Mock Trial</h1>
   <span id="case-title">State v. Harper Lynn · Murder · Conspiracy · Solicitation</span>
   <div id="header-right">
+    <button class="hdr-toggle" id="tg-left" onclick="togglePanel('left')" title="Show or hide the left panel (courtroom, witness, notes)">◧ Left</button>
+    <button class="hdr-toggle" id="tg-right" onclick="togglePanel('right')" title="Show or hide the right panel (objections, evidence)">Right ◨</button>
     <div id="tts-control">
       <span style="font-size:10px">🔊</span>
       <input type="range" id="tts-speed" min="0.5" max="3" step="0.1" value="1.0" oninput="updateTTSLabel()" title="Speech speed — drag any time, even while a voice is talking (0.5×–3.0×)">
@@ -374,13 +393,21 @@ body{background:radial-gradient(1100px 560px at 72% -12%,#17171e 0%,#0d0d0f 58%)
         <text x="126" y="60" text-anchor="middle" fill="#55556a" font-size="6.5" font-family="Inter" id="svg-podium-label">PODIUM</text>
       </svg>
     </div>
-    <div class="panel-section">
-      <div class="panel-label">Speaking</div>
-      <div id="char-list"></div>
+    <div class="panel-section" id="witness-section" style="display:none">
+      <div class="panel-label">⚖ Witness on Stand</div>
+      <div id="witness-card"></div>
     </div>
     <div class="panel-section">
       <div class="panel-label">Phase Guide</div>
       <div style="font-size:11px;color:var(--text-dim);line-height:1.6" id="phase-guide">—</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Speaking</div>
+      <div id="char-list"></div>
+    </div>
+    <div class="panel-section" id="notes-section">
+      <div class="panel-label" style="display:flex;justify-content:space-between;align-items:center">My Notes <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted);font-size:9px">auto-saved</span></div>
+      <textarea id="notes-pad" placeholder="Jot cross questions, objections to raise, key facts to hit…"></textarea>
     </div>
   </div>
 
@@ -389,6 +416,22 @@ body{background:radial-gradient(1100px 560px at 72% -12%,#17171e 0%,#0d0d0f 58%)
     <div id="transcript-col">
       <div id="coaching-box"></div>
       <div id="transcript"></div>
+      <!-- INPUT — lives with the transcript so it moves & resizes together -->
+      <div id="input-area">
+        <div id="action-row">
+          <button class="act-btn obj" id="btn-obj" onclick="sendObjection()" title="Raise a general objection to the AI" disabled>⚠ Objection</button>
+          <button class="act-btn next" id="btn-next" onclick="nextPhase()" title="Advance to the next phase of the trial" disabled>Next Phase →</button>
+          <button class="act-btn coach" id="btn-coach" onclick="getCoaching()" title="Pause the trial and get strategic advice from the AI coach" disabled>💡 Coaching</button>
+          <button class="act-btn mic" id="btn-mic" onclick="toggleMic()" title="Toggle speech-to-text — click to start (types as you speak), click again to stop. It will NOT auto-send." disabled>🎤 Speak</button>
+          <button class="act-btn docs" id="btn-docs" onclick="toggleSplit()" title="Split-screen the real case PDFs — exhibits, affidavits, rulebooks, evaluation form" disabled>📑 Documents</button>
+          <button class="act-btn rules" id="btn-rules" onclick="openModal('rules')" title="Open witnesses, exhibits, charges, Y&G rules & full objection guide" disabled>📋 Rules & Docs</button>
+          <button class="act-btn pretrial" id="btn-pretrial" onclick="openPretrial()" title="Open the pre-trial motions conference" disabled>⚖️ Pre-Trial</button>
+        </div>
+        <div id="text-row">
+          <textarea id="user-input" placeholder="Type here, or click 🎤 Speak to dictate live. Enter to send · Shift+Enter for a new line." rows="2"></textarea>
+          <button id="send-btn" onclick="sendMsg()" disabled>Send ▸</button>
+        </div>
+      </div>
     </div>
     <div id="doc-divider" title="Drag to resize"></div>
     <div id="doc-pane">
@@ -418,23 +461,6 @@ body{background:radial-gradient(1100px 560px at 72% -12%,#17171e 0%,#0d0d0f 58%)
       <div class="panel-label">Objections Log</div>
       <div id="obj-log"></div>
     </div>
-  </div>
-</div>
-
-<!-- INPUT -->
-<div id="input-area">
-  <div id="action-row">
-    <button class="act-btn obj" id="btn-obj" onclick="sendObjection()" title="Raise a general objection to the AI" disabled>⚠ Objection</button>
-    <button class="act-btn next" id="btn-next" onclick="nextPhase()" title="Advance to the next phase of the trial" disabled>Next Phase →</button>
-    <button class="act-btn coach" id="btn-coach" onclick="getCoaching()" title="Pause the trial and get strategic advice from the AI coach" disabled>💡 Coaching</button>
-    <button class="act-btn mic" id="btn-mic" title="Hold this button (or hold the SPACE key) and speak — release to send" disabled>🎤 Hold to Talk</button>
-    <button class="act-btn docs" id="btn-docs" onclick="toggleSplit()" title="Split-screen the real case PDFs — exhibits, affidavits, rulebooks, evaluation form" disabled>📑 Documents</button>
-    <button class="act-btn rules" id="btn-rules" onclick="openModal('rules')" title="Open witnesses, exhibits, charges, Y&G rules & full objection guide" disabled>📋 Rules & Docs</button>
-    <button class="act-btn pretrial" id="btn-pretrial" onclick="openPretrial()" title="Open the pre-trial motions conference" disabled>⚖️ Pre-Trial</button>
-  </div>
-  <div id="text-row">
-    <textarea id="user-input" placeholder="Type your statement or question — Enter to send, Shift+Enter for a new line. Or hold SPACE / the mic button to talk." rows="2"></textarea>
-    <button id="send-btn" onclick="sendMsg()" disabled>Send ▸</button>
   </div>
 </div>
 
@@ -625,7 +651,7 @@ async function startTrial(){
   S.role=getv('role');S.diff=getv('diff');S.ollamaModel=document.getElementById('ollama-model-input').value.trim()||'llama3';
   CASE.evidence.forEach(e=>{S.evidenceState[e.id]='pending';});
   document.getElementById('setup-screen').style.display='none';
-  buildCharList();buildEvidenceList();buildQuickObj();buildDocTabs();updatePhaseUI();enableButtons();
+  buildCharList();buildEvidenceList();buildQuickObj();buildDocTabs();initNotes();updatePhaseUI();enableButtons();
   await checkOllama();
   await beginTrial();
 }
@@ -819,6 +845,7 @@ function updatePhaseUI(){
   // Quick-objection chips only make sense during examination phases
   const examPhase=/^(direct|cross)/.test(S.phase);
   document.querySelectorAll('.qobj-chip').forEach(c=>c.disabled=!examPhase);
+  renderWitnessCard();
 }
 function enableButtons(){['btn-obj','btn-next','btn-coach','btn-mic','btn-docs','btn-rules','btn-pretrial','send-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});}
 function setButtons(d){['btn-obj','btn-next','btn-coach','btn-mic','btn-rules','btn-pretrial','send-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=d;});}
@@ -851,7 +878,7 @@ VERDICT FACTORS: ${CASE.verdictFactors}
 FORMAT: Start every response with [JUDGE], [WITNESS: Name], [${aiRole.toUpperCase()} ATTORNEY], or [COACHING] (only if user asks).
 RULES: Stay in character. Witnesses answer only what asked - 2-4 sentences. Experts must be qualified. Judge rules on objections with 1-sentence reason. Acknowledge exhibit admissions. Openings/closings: 2-3 paragraphs.`;
 }
-function getCurrentWitness(){if(!S.currentWitnessKey)return null;const side=S.currentWitnessKey.includes('p')?'prosecution':'defense';const idx=parseInt(S.currentWitnessKey.charAt(1));return CASE.witnesses[side][idx];}
+function getCurrentWitness(){if(!S.currentWitnessKey)return null;const side=S.currentWitnessKey.charAt(1)==='p'?'prosecution':'defense';const idx=parseInt(S.currentWitnessKey.charAt(2),10);return CASE.witnesses[side]&&CASE.witnesses[side][idx]||null;}
 async function callOllama(userMsg){
   const messages=[...S.history,{role:'user',content:userMsg}];
   const resp=await fetch('http://localhost:11434/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:S.ollamaModel,stream:false,messages:[{role:'system',content:buildSystem()},...messages]})});
@@ -966,56 +993,61 @@ function openDoc(id){const d=DOCS.find(x=>x.id===id)||DOCS[0];currentDoc=d.id;se
 function closeDoc(){setSplit(false);}
 function openDocNewTab(){const d=DOCS.find(x=>x.id===currentDoc)||DOCS[1];window.open(d.file,'_blank');}
 function openDocNewTab2(id){const d=DOCS.find(x=>x.id===id);if(d)window.open(d.file,'_blank');}
+
+// ═══════════ COLLAPSIBLE PANELS ═══════════
+function togglePanel(side){const cls=side==='left'?'hide-left':'hide-right';document.body.classList.toggle(cls);const b=document.getElementById(side==='left'?'tg-left':'tg-right');if(b)b.classList.toggle('off',document.body.classList.contains(cls));}
+
+// ═══════════ LEFT PANEL: WITNESS ON STAND + NOTES ═══════════
+function renderWitnessCard(){
+  const sec=document.getElementById('witness-section'),card=document.getElementById('witness-card');
+  if(!sec||!card)return;
+  const w=getCurrentWitness();
+  if(!w){sec.style.display='none';return;}
+  sec.style.display='block';
+  const isDirect=/^direct/.test(S.phase);
+  const tag=isDirect?'<span style="color:var(--gold)">Your witness — open questions, no leading</span>':'<span style="color:var(--prosecution)">Opposing witness — lead &amp; impeach</span>';
+  card.innerHTML=`<div style="font-family:'EB Garamond',serif;font-size:14px;font-weight:600;color:var(--witness)">${w.name}</div>
+  <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">${w.role}</div>
+  <div style="font-size:10px;margin-bottom:6px">${tag}</div>
+  <div style="font-size:10.5px;color:var(--text-dim);line-height:1.5;max-height:170px;overflow:auto;padding-right:4px">${w.bio}</div>
+  <button onclick="openDoc('case')" title="Open the full affidavits PDF in split view" style="margin-top:7px;font-size:9px;font-weight:700;letter-spacing:.04em;padding:4px 8px;border-radius:7px;border:1px solid #2a5a4f;background:rgba(143,212,196,.08);color:#8fd4c4;cursor:pointer;font-family:'Inter',sans-serif">📄 Full affidavit</button>`;
+}
+function initNotes(){const n=document.getElementById('notes-pad');if(!n)return;try{n.value=localStorage.getItem('mt_notes')||'';}catch(e){}n.addEventListener('input',()=>{try{localStorage.setItem('mt_notes',n.value);}catch(e){}});}
 (function(){const div=document.getElementById('doc-divider'),pane=document.getElementById('doc-pane'),wrap=document.getElementById('transcript-wrap');if(!div)return;let dragging=false;
   div.addEventListener('pointerdown',e=>{dragging=true;try{div.setPointerCapture(e.pointerId);}catch(_){}document.body.style.userSelect='none';});
   div.addEventListener('pointermove',e=>{if(!dragging)return;const r=wrap.getBoundingClientRect();let w=r.right-e.clientX;w=Math.max(300,Math.min(r.width-280,w));pane.style.width=w+'px';});
   window.addEventListener('pointerup',()=>{if(dragging){dragging=false;document.body.style.userSelect='';}});
 })();
 
-// ═══════════ PUSH-TO-TALK (hold to talk) ═══════════
-let recognition=null,micActive=false,pttFinal='',pttShouldSend=false;
+// ═══════════ SPEECH-TO-TEXT (toggle; live updates; no auto-send) ═══════════
+let recognition=null,micActive=false,micFinal='',micUserStopped=false;
 function srSupported(){return ('webkitSpeechRecognition' in window)||('SpeechRecognition' in window);}
-function micUI(on){const b=document.getElementById('btn-mic');if(!b)return;if(on){b.classList.add('recording');b.textContent='🔴 Listening… release to send';}else{b.classList.remove('recording');b.textContent='🎤 Hold to Talk';}}
-function startPTT(){
+function micUI(on){const b=document.getElementById('btn-mic');if(!b)return;if(on){b.classList.add('recording');b.textContent='🔴 Recording… (click to stop)';}else{b.classList.remove('recording');b.textContent='🎤 Speak';}}
+function startMic(){
   if(micActive||S.loading)return;
-  if(!srSupported()){alert('Push-to-talk needs Chrome or Edge (Web Speech API).');return;}
+  if(!srSupported()){alert('Speech-to-text needs Chrome or Edge (Web Speech API).');return;}
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   recognition=new SR();recognition.lang='en-US';recognition.interimResults=true;recognition.continuous=true;recognition.maxAlternatives=1;
   const inp=document.getElementById('user-input');
-  pttFinal=inp.value.trim();pttShouldSend=true;
+  micFinal=inp.value.trim();micUserStopped=false;
   recognition.onstart=()=>{micActive=true;micUI(true);};
   recognition.onresult=(e)=>{
     let interim='';
     for(let i=e.resultIndex;i<e.results.length;i++){
       const r=e.results[i];
-      if(r.isFinal)pttFinal=(pttFinal+' '+r[0].transcript).trim();
+      if(r.isFinal)micFinal=(micFinal+' '+r[0].transcript).trim();
       else interim+=r[0].transcript;
     }
-    inp.value=(pttFinal+' '+interim).trim();
+    inp.value=(micFinal+(interim?' '+interim:'')).trim();
     inp.style.height='auto';inp.style.height=Math.min(inp.scrollHeight,100)+'px';
   };
-  recognition.onerror=(ev)=>{if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){alert('Microphone blocked. Allow mic access for this page, then try again.');}pttShouldSend=false;};
-  recognition.onend=()=>{micActive=false;micUI(false);const v=document.getElementById('user-input').value.trim();if(v&&pttShouldSend)sendMsg();pttShouldSend=false;};
+  recognition.onerror=(ev)=>{if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){micUserStopped=true;alert('Microphone blocked. Allow mic access for this page, then try again.');}};
+  // Keep the toggle "on" across Chrome's silence auto-stops until the user clicks stop.
+  recognition.onend=()=>{ if(!micUserStopped){ try{recognition.start();return;}catch(e){} } micActive=false;micUI(false); };
   try{recognition.start();}catch(e){micActive=false;micUI(false);}
 }
-function stopPTT(){if(recognition&&micActive){try{recognition.stop();}catch(e){}}}
-(function bindMic(){
-  const b=document.getElementById('btn-mic');if(!b)return;
-  b.addEventListener('pointerdown',e=>{e.preventDefault();startPTT();});
-  b.addEventListener('pointerup',e=>{e.preventDefault();stopPTT();});
-  b.addEventListener('pointerleave',()=>{if(micActive)stopPTT();});
-  b.addEventListener('pointercancel',()=>{if(micActive)stopPTT();});
-  // Hold SPACE to talk when not typing in a text field
-  document.addEventListener('keydown',e=>{
-    if(e.code==='Space'&&!e.repeat){
-      const a=document.activeElement,tag=a&&a.tagName;
-      if(tag==='INPUT'||tag==='TEXTAREA')return;
-      if(b.disabled)return;
-      e.preventDefault();startPTT();
-    }
-  });
-  document.addEventListener('keyup',e=>{if(e.code==='Space'&&micActive){e.preventDefault();stopPTT();}});
-})();
+function stopMic(){micUserStopped=true;if(recognition){try{recognition.stop();}catch(e){}}}
+function toggleMic(){ if(micActive)stopMic(); else startMic(); }
 
 document.getElementById('user-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});
 document.getElementById('user-input').addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px';});
