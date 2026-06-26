@@ -621,6 +621,37 @@ body{
 .ex-badge.pending{background:rgba(93,111,147,.22);color:var(--text-dim)}
 .ex-badge.admitted{background:rgba(70,192,138,.16);color:var(--witness)}
 .ex-badge.excluded{background:rgba(224,121,95,.16);color:var(--prosecution)}
+
+/* ═══════════ CHAT-STYLE TRANSCRIPT (avatars + speech bubbles) ═══════════ */
+#transcript{gap:16px}
+.t-entry{display:flex;flex-direction:row;gap:10px;align-items:flex-start;max-width:90%;animation:bubIn .24s ease}
+@keyframes bubIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+.t-entry.you{flex-direction:row-reverse;margin-left:auto}
+.t-avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:var(--surface2);border:1.5px solid var(--border2);box-shadow:0 2px 7px rgba(0,0,0,.35)}
+.t-entry.judge .t-avatar{border-color:var(--judge)}
+.t-entry.witness .t-avatar{border-color:var(--witness)}
+.t-entry.prosecution .t-avatar{border-color:var(--prosecution)}
+.t-entry.defense .t-avatar{border-color:var(--defense)}
+.t-entry.you .t-avatar{border-color:var(--gold)}
+.t-bubble{display:flex;flex-direction:column;gap:4px;min-width:0}
+.t-speaker{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.9;background:none;padding:0}
+.t-entry.you .t-speaker{text-align:right;color:var(--gold)}
+.t-entry.judge .t-speaker{color:var(--judge)}
+.t-entry.witness .t-speaker{color:var(--witness)}
+.t-entry.prosecution .t-speaker{color:var(--prosecution)}
+.t-entry.defense .t-speaker{color:var(--defense)}
+.t-entry .t-text{font-family:'EB Garamond',serif;font-size:15px;line-height:1.6;padding:10px 15px;border-radius:14px;background:rgba(15,24,42,.92);border:1px solid var(--border);box-shadow:0 2px 9px rgba(0,0,0,.28);color:var(--text)}
+.t-entry.judge .t-text{border-color:rgba(181,140,240,.32)}
+.t-entry.witness .t-text{border-color:rgba(70,192,138,.32)}
+.t-entry.prosecution .t-text{border-color:rgba(224,121,95,.32)}
+.t-entry.defense .t-text{border-color:rgba(95,168,224,.32)}
+.t-entry:not(.you) .t-text{border-top-left-radius:5px}
+.t-entry.you .t-text{background:linear-gradient(180deg,rgba(77,141,246,.2),rgba(77,141,246,.08));border-color:rgba(77,141,246,.42);border-top-right-radius:5px}
+/* system lines as subtle centered dividers */
+.t-entry.system{max-width:100%;justify-content:center;animation:none}
+.t-system{font-size:10.5px;color:var(--text-muted);font-style:italic;text-align:center;letter-spacing:.05em;padding:3px 0;position:relative}
+.typing .t-avatar{font-size:14px}
+.typing .t-bubble{justify-content:center;padding-top:7px}
 </style>
 </head>
 <body>
@@ -1361,18 +1392,24 @@ function enableButtons(){['btn-obj','btn-next','btn-coach','btn-mic','btn-more',
 function setButtons(d){['btn-obj','btn-next','btn-coach','btn-mic','btn-rules','btn-pretrial','send-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=d;});}
 
 // ═══════════ TRANSCRIPT ═══════════
+const ROLE_AV={judge:'⚖️',you:'🎙️',prosecution:'🧑‍💼',defense:'🧑‍💼',witness:'👤',system:''};
 function addEntry(label,cssRole,text){
   const t=document.getElementById('transcript');
   const nearBottom=t.scrollHeight-t.scrollTop-t.clientHeight<90;
-  const div=document.createElement('div');div.className='t-entry';
-  div.innerHTML=`<div class="t-speaker ${cssRole}">${label}</div><div class="t-text ${cssRole}">${text}</div>`;
+  const div=document.createElement('div');div.className='t-entry '+cssRole;
+  if(cssRole==='system'){
+    div.innerHTML=`<div class="t-system">${text}</div>`;
+  } else {
+    const av=ROLE_AV[cssRole]||'👤';
+    div.innerHTML=`<div class="t-avatar">${av}</div><div class="t-bubble"><div class="t-speaker">${label}</div><div class="t-text">${text}</div></div>`;
+  }
   t.appendChild(div);
   if(nearBottom)t.scrollTop=t.scrollHeight;else{const b=document.getElementById('to-latest');if(b)b.classList.add('show');}
   if(cssRole!=='system')cvSpeak(cssRole,text,label);
   if(typeof transcriptLog!=='undefined'){transcriptLog.push({label,cssRole,text});scheduleSave();}
 }
 let typingEl=null;
-function showTyping(){hideTyping();const t=document.getElementById('transcript');typingEl=document.createElement('div');typingEl.className='t-entry';typingEl.innerHTML=`<div class="t-speaker system">…</div><div class="typing-dots"><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></div>`;t.appendChild(typingEl);t.scrollTop=t.scrollHeight;}
+function showTyping(){hideTyping();const t=document.getElementById('transcript');typingEl=document.createElement('div');typingEl.className='t-entry typing';typingEl.innerHTML=`<div class="t-avatar">💬</div><div class="t-bubble"><div class="typing-dots"><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></div></div>`;t.appendChild(typingEl);t.scrollTop=t.scrollHeight;}
 function hideTyping(){typingEl?.remove();typingEl=null;}
 
 // OLLAMA
