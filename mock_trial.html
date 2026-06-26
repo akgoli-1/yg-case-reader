@@ -322,7 +322,7 @@ body{background:radial-gradient(1100px 560px at 72% -12%,#17171e 0%,#0d0d0f 58%)
   <div id="header-right">
     <div id="tts-control">
       <span style="font-size:10px">🔊</span>
-      <input type="range" id="tts-speed" min="0.6" max="1.8" step="0.1" value="1.0" oninput="updateTTSLabel()">
+      <input type="range" id="tts-speed" min="0.5" max="3" step="0.1" value="1.0" oninput="updateTTSLabel()" title="Speech speed — drag any time, even while a voice is talking (0.5×–3.0×)">
       <span id="tts-label">1.0×</span>
     </div>
     <div id="save-hint" title="Press Ctrl+S (Cmd+S on Mac) to save this page for offline use">💾 Ctrl+S to save offline</div>
@@ -555,6 +555,7 @@ const CASE = {
 
 // ═══════════ TTS ═══════════
 let voices=[], ttsRate=1.0;
+let _spkText='',_spkProfile='judge',_spkOnEnd=null,_spkOffset=0,_spkActive=false,_spkUtt=null,_rateTimer=null;
 window.speechSynthesis.onvoiceschanged=()=>{voices=window.speechSynthesis.getVoices()};
 setTimeout(()=>{voices=window.speechSynthesis.getVoices()},600);
 const VPROF={
@@ -568,14 +569,35 @@ const VPROF={
   witness1d:{pitch:.85,hints:['Fred','en-US']},
   witness2d:{pitch:1.15,hints:['Fiona','en-GB']}
 };
-function updateTTSLabel(){ttsRate=parseFloat(document.getElementById('tts-speed').value);document.getElementById('tts-label').textContent=ttsRate.toFixed(1)+'×';}
+function updateTTSLabel(){
+  ttsRate=parseFloat(document.getElementById('tts-speed').value);
+  document.getElementById('tts-label').textContent=ttsRate.toFixed(1)+'×';
+  // Apply the new rate to speech already in progress (debounced so dragging is smooth)
+  if(_spkActive){clearTimeout(_rateTimer);_rateTimer=setTimeout(restartSpeechAtNewRate,200);}
+}
 function getVoice(hints){if(!voices.length)voices=window.speechSynthesis.getVoices();for(const h of hints){const v=voices.find(v=>v.name.includes(h)||v.lang.startsWith(h));if(v)return v;}return voices.find(v=>v.lang.startsWith('en'))||voices[0]||null;}
+function _detachUtt(){if(_spkUtt){_spkUtt.onend=null;_spkUtt.onboundary=null;_spkUtt=null;}}
 function speak(text,profileKey,onEnd){
-  window.speechSynthesis.cancel();
-  const prof=VPROF[profileKey]||VPROF.judge;
-  const utt=new SpeechSynthesisUtterance(text.substring(0,700));
-  utt.voice=getVoice(prof.hints);utt.pitch=prof.pitch;utt.rate=ttsRate;utt.volume=1;utt.onend=onEnd||null;
+  _detachUtt();window.speechSynthesis.cancel();
+  _spkText=(text||'').substring(0,700);_spkProfile=profileKey;_spkOnEnd=onEnd||null;_spkOffset=0;_spkActive=true;
+  _speakFrom(0);
+}
+function _speakFrom(offset){
+  const prof=VPROF[_spkProfile]||VPROF.judge;
+  const remaining=_spkText.substring(offset);
+  if(!remaining.trim()){_spkActive=false;const cb=_spkOnEnd;_spkOnEnd=null;if(cb)cb();return;}
+  const utt=new SpeechSynthesisUtterance(remaining);
+  utt.voice=getVoice(prof.hints);utt.pitch=prof.pitch;utt.rate=Math.max(0.1,Math.min(10,ttsRate));utt.volume=1;
+  // Track read position so a mid-speech rate change can resume from here
+  utt.onboundary=(e)=>{if(typeof e.charIndex==='number')_spkOffset=offset+e.charIndex;};
+  utt.onend=()=>{_spkUtt=null;_spkActive=false;const cb=_spkOnEnd;_spkOnEnd=null;if(cb)cb();};
+  _spkUtt=utt;
   window.speechSynthesis.speak(utt);
+}
+function restartSpeechAtNewRate(){
+  if(!_spkActive)return;
+  _detachUtt();window.speechSynthesis.cancel();
+  _speakFrom(_spkOffset);
 }
 
 // ═══════════ STATE ═══════════
