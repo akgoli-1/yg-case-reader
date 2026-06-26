@@ -507,6 +507,55 @@ kbd{font-family:'Inter',sans-serif;font-size:10px;font-weight:700;background:var
   #right-panel .qobj-chip{font-size:10.5px;padding:5px 9px}
   .panel-section{padding:11px 13px}
 }
+
+/* ═══════════════════ BLUEPRINT THEME (matches ygblueprint.me) ═══════════════════ */
+:root{
+  --bg:#080c16;--surface:#0e1626;--surface2:#13203a;--surface3:#1b2b4d;
+  --border:#1b2740;--border2:#2b3d62;
+  --gold:#4d8df6;--gold-dim:#2a4d86;--gold-glow:rgba(77,141,246,.20);
+  --text:#e7edf8;--text-dim:#9db0d4;--text-muted:#5d6f93;
+  --prosecution:#e0795f;--defense:#5fa8e0;--judge:#b58cf0;--witness:#46c08a;--you:#4d8df6;
+}
+/* Deep navy page with a faint blueprint grid (minor 28px + major 140px lines) */
+body{
+  background-color:#080c16;
+  background-image:
+    linear-gradient(rgba(92,140,232,.06) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(92,140,232,.06) 1px,transparent 1px),
+    linear-gradient(rgba(92,140,232,.028) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(92,140,232,.028) 1px,transparent 1px);
+  background-size:140px 140px,140px 140px,28px 28px,28px 28px;
+}
+/* Let the grid show through the main content; panels are translucent navy */
+#main{background:transparent}
+#transcript-wrap,#transcript-col,#transcript{background:transparent}
+#header{background:linear-gradient(180deg,rgba(14,22,38,.96),rgba(8,12,22,.9));border-bottom:1px solid var(--border2);box-shadow:none}
+#header h1{color:var(--gold);text-shadow:0 0 18px rgba(77,141,246,.25)}
+#phase-track{background:rgba(9,14,26,.82)}
+#left-panel{background:rgba(11,17,32,.92);border-right:1px solid var(--border)}
+#right-panel{background:rgba(11,17,32,.92);border-left:1px solid var(--border)}
+#doc-pane{background:rgba(11,17,32,.96)}
+.t-text{background:rgba(15,24,42,.82);box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.t-text.you{background:linear-gradient(180deg,rgba(77,141,246,.12),rgba(77,141,246,.03))}
+#input-area{background:linear-gradient(180deg,rgba(13,20,36,.94),rgba(9,13,24,.96));box-shadow:0 -1px 0 rgba(92,140,232,.06)}
+#user-input{background:var(--surface2)}
+#transcript-bar{background:rgba(11,17,32,.6)}
+/* Setup screen gets the blueprint backdrop too */
+#setup-screen{background-color:#080c16;background-image:linear-gradient(rgba(92,140,232,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(92,140,232,.06) 1px,transparent 1px),linear-gradient(rgba(92,140,232,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(92,140,232,.028) 1px,transparent 1px);background-size:140px 140px,140px 140px,28px 28px,28px 28px}
+#setup-card{background:linear-gradient(180deg,#0e1626,#0a1120);border-color:var(--border2);box-shadow:0 30px 90px rgba(0,0,0,.6),0 0 0 1px rgba(77,141,246,.06)}
+#setup-card h2{color:var(--gold)}
+.s-opt.sel{border-color:var(--gold);background:rgba(77,141,246,.09)}
+#start-btn{box-shadow:0 8px 26px rgba(77,141,246,.28)}
+/* Accents → blueprint blue */
+#phase-track .pt-step.active{color:var(--gold);border-bottom-color:var(--gold);background:linear-gradient(180deg,rgba(77,141,246,.16),transparent)}
+.char-card.speaking{background:rgba(77,141,246,.08);border-color:var(--gold-dim)}
+.char-card.speaking .char-avatar{border-color:var(--gold)}
+.qobj-chip:hover{color:var(--gold);border-color:var(--gold-dim);background:rgba(77,141,246,.08)}
+.act-btn:hover:not(:disabled){background:rgba(77,141,246,.08)!important;border-color:var(--gold-dim)!important}
+.evidence-item:hover{background:rgba(77,141,246,.06)}
+#save-hint,#ollama-status,#tts-control,.hdr-chip,.hdr-toggle{border-color:var(--border2)}
+::selection{background:rgba(77,141,246,.3)}
+::-webkit-scrollbar-thumb{background:#24365c;border:2px solid #0a0f1c}::-webkit-scrollbar-thumb:hover{background:#33497a}
 </style>
 </head>
 <body>
