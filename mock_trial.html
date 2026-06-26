@@ -248,6 +248,30 @@ body{background:radial-gradient(1100px 560px at 72% -12%,#17171e 0%,#0d0d0f 58%)
 #modal-body .ex-block{border-radius:9px}
 
 ::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#2f2f3a;border-radius:7px;border:2px solid #131318}::-webkit-scrollbar-thumb:hover{background:#3c3c4a}
+
+/* ═══════════ SPLIT-SCREEN DOCUMENT PANE ═══════════ */
+#transcript-wrap{flex-direction:row}
+#transcript-col{display:flex;flex-direction:column;flex:1;min-width:0;overflow:hidden}
+#doc-divider{display:none;width:6px;flex-shrink:0;cursor:col-resize;background:var(--border);transition:background .15s}
+#doc-divider:hover{background:var(--gold-dim)}
+#doc-pane{display:none;flex-direction:column;width:46%;min-width:300px;background:var(--surface);border-left:1px solid var(--border)}
+#transcript-wrap.split #doc-pane{display:flex}
+#transcript-wrap.split #doc-divider{display:block}
+#doc-toolbar{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#1b1b22,#15151b);flex-shrink:0}
+#doc-tabs{display:flex;flex-wrap:wrap;gap:4px;flex:1;min-width:0}
+.doc-tab{font-size:10px;font-weight:600;letter-spacing:.02em;padding:5px 9px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text-dim);cursor:pointer;font-family:'Inter',sans-serif;transition:all .12s;white-space:nowrap}
+.doc-tab:hover{border-color:var(--gold-dim);color:var(--text)}
+.doc-tab.active{border-color:var(--gold);color:var(--gold);background:var(--gold-glow)}
+#doc-actions{display:flex;gap:5px;flex-shrink:0}
+#doc-newtab,#doc-close{font-size:11px;font-weight:600;padding:5px 9px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text-dim);cursor:pointer;font-family:'Inter',sans-serif;transition:all .12s;white-space:nowrap}
+#doc-newtab:hover,#doc-close:hover{border-color:var(--gold-dim);color:var(--text)}
+#doc-frame{flex:1;width:100%;border:none;background:#525659}
+.act-btn.docs{color:#8fd4c4;border-color:#2a5a4f}
+.act-btn.docs:hover:not(:disabled){background:rgba(143,212,196,.1)}
+.act-btn.docs.active{background:rgba(143,212,196,.16);border-color:#8fd4c4;color:#aef0e0}
+.modal-pdf-bar{display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 14px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.modal-pdf-btn{font-size:11px;font-weight:600;padding:6px 11px;border-radius:8px;border:1px solid #2a5a4f;background:rgba(143,212,196,.08);color:#8fd4c4;cursor:pointer;font-family:'Inter',sans-serif;transition:all .12s}
+.modal-pdf-btn:hover{background:rgba(143,212,196,.18);color:#aef0e0}
 </style>
 </head>
 <body>
@@ -362,8 +386,21 @@ body{background:radial-gradient(1100px 560px at 72% -12%,#17171e 0%,#0d0d0f 58%)
 
   <!-- CENTER -->
   <div id="transcript-wrap">
-    <div id="coaching-box"></div>
-    <div id="transcript"></div>
+    <div id="transcript-col">
+      <div id="coaching-box"></div>
+      <div id="transcript"></div>
+    </div>
+    <div id="doc-divider" title="Drag to resize"></div>
+    <div id="doc-pane">
+      <div id="doc-toolbar">
+        <div id="doc-tabs"></div>
+        <div id="doc-actions">
+          <button id="doc-newtab" title="Open this document in a new browser tab" onclick="openDocNewTab()">↗ New tab</button>
+          <button id="doc-close" title="Close the document pane" onclick="closeDoc()">✕</button>
+        </div>
+      </div>
+      <iframe id="doc-frame" title="Case document"></iframe>
+    </div>
   </div>
 
   <!-- RIGHT -->
@@ -374,7 +411,7 @@ body{background:radial-gradient(1100px 560px at 72% -12%,#17171e 0%,#0d0d0f 58%)
       <div style="font-size:9px;color:var(--text-muted);margin-top:5px;line-height:1.4">Hover a chip for the full phrasing. Use during examination — not during opening/closing.</div>
     </div>
     <div class="panel-section">
-      <div class="panel-label">Evidence (click to view)</div>
+      <div class="panel-label" style="display:flex;justify-content:space-between;align-items:center;gap:6px">Evidence <button onclick="openDoc('exhibits')" title="Open the real Exhibits PDF in split view" style="font-size:9px;font-weight:700;letter-spacing:.04em;padding:3px 7px;border-radius:7px;border:1px solid #2a5a4f;background:rgba(143,212,196,.08);color:#8fd4c4;cursor:pointer;font-family:'Inter',sans-serif">📄 PDF</button></div>
       <div id="evidence-list"></div>
     </div>
     <div class="panel-section">
@@ -391,6 +428,7 @@ body{background:radial-gradient(1100px 560px at 72% -12%,#17171e 0%,#0d0d0f 58%)
     <button class="act-btn next" id="btn-next" onclick="nextPhase()" title="Advance to the next phase of the trial" disabled>Next Phase →</button>
     <button class="act-btn coach" id="btn-coach" onclick="getCoaching()" title="Pause the trial and get strategic advice from the AI coach" disabled>💡 Coaching</button>
     <button class="act-btn mic" id="btn-mic" title="Hold this button (or hold the SPACE key) and speak — release to send" disabled>🎤 Hold to Talk</button>
+    <button class="act-btn docs" id="btn-docs" onclick="toggleSplit()" title="Split-screen the real case PDFs — exhibits, affidavits, rulebooks, evaluation form" disabled>📑 Documents</button>
     <button class="act-btn rules" id="btn-rules" onclick="openModal('rules')" title="Open witnesses, exhibits, charges, Y&G rules & full objection guide" disabled>📋 Rules & Docs</button>
     <button class="act-btn pretrial" id="btn-pretrial" onclick="openPretrial()" title="Open the pre-trial motions conference" disabled>⚖️ Pre-Trial</button>
   </div>
@@ -565,7 +603,7 @@ async function startTrial(){
   S.role=getv('role');S.diff=getv('diff');S.ollamaModel=document.getElementById('ollama-model-input').value.trim()||'llama3';
   CASE.evidence.forEach(e=>{S.evidenceState[e.id]='pending';});
   document.getElementById('setup-screen').style.display='none';
-  buildCharList();buildEvidenceList();buildQuickObj();updatePhaseUI();enableButtons();
+  buildCharList();buildEvidenceList();buildQuickObj();buildDocTabs();updatePhaseUI();enableButtons();
   await checkOllama();
   await beginTrial();
 }
@@ -652,6 +690,10 @@ function switchTab(tab,evId){
   else if(tab==='charges')renderChargesTab(body);
   else if(tab==='rules')renderRulesTab(body);
   else if(tab==='objections')renderObjectionsTab(body);
+  // Link each tab to its official source PDF (split view + new tab)
+  const pdfMap={witnesses:'case',exhibits:'exhibits',charges:'case',rules:'procedure',objections:'evidence'};
+  const docId=pdfMap[tab];
+  if(docId){const d=DOCS.find(x=>x.id===docId);body.insertAdjacentHTML('afterbegin',`<div class="modal-pdf-bar"><span style="font-size:11px;color:var(--text-muted);align-self:center">📄 Official PDF — ${d.name}:</span><button class="modal-pdf-btn" onclick="openDoc('${docId}')">Open in split view →</button><button class="modal-pdf-btn" onclick="openDocNewTab2('${docId}')">New tab ↗</button></div>`);}
 }
 function renderWitnessesTab(body){
   body.innerHTML=`<h3>Prosecution Witnesses</h3>${CASE.witnesses.prosecution.map(w=>`<div class="ex-block"><div class="ex-title">${w.name} — ${w.role}</div><div class="ex-content">${w.bio}</div></div>`).join('')}<h3>Defense Witnesses</h3>${CASE.witnesses.defense.map(w=>`<div class="ex-block"><div class="ex-title">${w.name} — ${w.role}</div><div class="ex-content">${w.bio}</div></div>`).join('')}`;
@@ -756,7 +798,7 @@ function updatePhaseUI(){
   const examPhase=/^(direct|cross)/.test(S.phase);
   document.querySelectorAll('.qobj-chip').forEach(c=>c.disabled=!examPhase);
 }
-function enableButtons(){['btn-obj','btn-next','btn-coach','btn-mic','btn-rules','btn-pretrial','send-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});}
+function enableButtons(){['btn-obj','btn-next','btn-coach','btn-mic','btn-docs','btn-rules','btn-pretrial','send-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});}
 function setButtons(d){['btn-obj','btn-next','btn-coach','btn-mic','btn-rules','btn-pretrial','send-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=d;});}
 
 // ═══════════ TRANSCRIPT ═══════════
@@ -884,6 +926,29 @@ function buildQuickObj(){
   c.innerHTML=QUICK_OBJ.map((o,i)=>`<button class="qobj-chip" title="${o.say}" onclick="fireQuickObj(${i})">${o.k}</button>`).join('');
 }
 function fireQuickObj(i){if(S.loading)return;document.getElementById('coaching-box').style.display='none';processUserInput(QUICK_OBJ[i].say);}
+
+// ═══════════ SPLIT-SCREEN DOCUMENTS (real PDFs) ═══════════
+const DOCS=[
+  {id:'case',name:'Case & Affidavits',file:'docs/case.pdf'},
+  {id:'exhibits',name:'Exhibits',file:'docs/exhibits.pdf'},
+  {id:'procedure',name:'Rules of Procedure',file:'docs/rules-procedure.pdf'},
+  {id:'evidence',name:'Rules of Evidence',file:'docs/rules-evidence.pdf'},
+  {id:'tips',name:'Evaluator Tips',file:'docs/evaluator-tips.pdf'},
+  {id:'evalform',name:'Evaluation Form',file:'docs/evaluation-form.pdf'}
+];
+let currentDoc=null,splitOpen=false;
+function buildDocTabs(){const c=document.getElementById('doc-tabs');if(!c)return;c.innerHTML=DOCS.map(d=>`<button class="doc-tab" data-doc="${d.id}" onclick="openDoc('${d.id}')">${d.name}</button>`).join('');}
+function setSplit(on){splitOpen=on;document.getElementById('transcript-wrap').classList.toggle('split',on);const b=document.getElementById('btn-docs');if(b)b.classList.toggle('active',on);}
+function toggleSplit(){if(splitOpen){setSplit(false);}else{setSplit(true);if(!currentDoc)openDoc('exhibits');}}
+function openDoc(id){const d=DOCS.find(x=>x.id===id)||DOCS[0];currentDoc=d.id;setSplit(true);closeModal();const f=document.getElementById('doc-frame');if(f.getAttribute('data-doc')!==d.id){f.src=d.file+'#view=FitH';f.setAttribute('data-doc',d.id);}document.querySelectorAll('.doc-tab').forEach(t=>t.classList.toggle('active',t.dataset.doc===d.id));}
+function closeDoc(){setSplit(false);}
+function openDocNewTab(){const d=DOCS.find(x=>x.id===currentDoc)||DOCS[1];window.open(d.file,'_blank');}
+function openDocNewTab2(id){const d=DOCS.find(x=>x.id===id);if(d)window.open(d.file,'_blank');}
+(function(){const div=document.getElementById('doc-divider'),pane=document.getElementById('doc-pane'),wrap=document.getElementById('transcript-wrap');if(!div)return;let dragging=false;
+  div.addEventListener('pointerdown',e=>{dragging=true;try{div.setPointerCapture(e.pointerId);}catch(_){}document.body.style.userSelect='none';});
+  div.addEventListener('pointermove',e=>{if(!dragging)return;const r=wrap.getBoundingClientRect();let w=r.right-e.clientX;w=Math.max(300,Math.min(r.width-280,w));pane.style.width=w+'px';});
+  window.addEventListener('pointerup',()=>{if(dragging){dragging=false;document.body.style.userSelect='';}});
+})();
 
 // ═══════════ PUSH-TO-TALK (hold to talk) ═══════════
 let recognition=null,micActive=false,pttFinal='',pttShouldSend=false;

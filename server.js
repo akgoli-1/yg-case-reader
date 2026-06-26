@@ -16,6 +16,7 @@ const MIME = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.ico': 'image/x-icon',
+  '.pdf': 'application/pdf',
 };
 
 const server = http.createServer((req, res) => {
@@ -40,8 +41,14 @@ const server = http.createServer((req, res) => {
     });
   };
 
+  const reqExt = path.extname(urlPath).toLowerCase();
   fs.readFile(filePath, (err, data) => {
-    if (err) { sendApp(); return; }
+    if (err) {
+      // Real asset (e.g. a .pdf/.png) that's missing → honest 404.
+      // Extension-less navigation (typos) → serve the app so it never 404s.
+      if (reqExt && reqExt !== '.html') { res.writeHead(404, {'Content-Type': 'text/plain'}); res.end('404 Not Found'); return; }
+      sendApp(); return;
+    }
     const ext = path.extname(filePath).toLowerCase();
     res.writeHead(200, Object.assign({ 'Content-Type': MIME[ext] || 'application/octet-stream' }, noCache));
     res.end(data);
