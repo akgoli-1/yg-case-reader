@@ -556,6 +556,35 @@ body{
 #save-hint,#ollama-status,#tts-control,.hdr-chip,.hdr-toggle{border-color:var(--border2)}
 ::selection{background:rgba(77,141,246,.3)}
 ::-webkit-scrollbar-thumb{background:#24365c;border:2px solid #0a0f1c}::-webkit-scrollbar-thumb:hover{background:#33497a}
+
+/* ═══════════ SLEEK PASS v2 — declutter & breathe ═══════════ */
+.panel-section{border-bottom:1px solid rgba(43,61,98,.32)}
+.panel-label{font-size:9px;letter-spacing:.13em;opacity:.78}
+#transcript{padding:20px 26px;gap:14px}
+.t-text{padding:11px 16px}
+/* Action bar: two primary buttons + a compact icon group */
+#action-row{gap:6px;align-items:center;flex-wrap:wrap}
+.act-spacer{flex:1;min-width:0}
+.act-btn{font-size:11px;padding:6px 11px}
+.act-btn.icon{min-width:40px;padding:6px 0;font-size:15px;justify-content:center;text-align:center;color:var(--text-dim)!important}
+.act-btn.icon:hover:not(:disabled){color:var(--text)!important}
+.act-btn.obj.icon{color:var(--prosecution)!important}
+.act-btn.mic.recording{font-size:15px}
+.act-btn.next{font-weight:700;color:var(--gold)!important;border-color:var(--gold-dim)!important;padding:6px 14px}
+.act-btn.next:hover:not(:disabled){background:rgba(77,141,246,.12)!important}
+/* Slimmer toolbars + header */
+#transcript-bar{padding:7px 18px;gap:6px}
+#transcript-bar .tb-actions button{min-width:30px;padding:6px 8px}
+#save-hint{padding:4px 7px;opacity:.5;font-size:12px}
+#header{padding:9px 18px}
+#header-right{gap:7px}
+/* Tighter, calmer chips */
+.qobj-chip{padding:4px 8px;font-size:9.5px}
+#quick-obj{gap:4px}
+#quick-obj-section>div:last-child{display:none}
+#left-panel .panel-section,#right-panel .panel-section{padding:10px 12px}
+/* fewer hard lines: drop the courtroom svg box border-feel */
+#courtroom-svg-wrap{border-bottom:1px solid rgba(43,61,98,.32)}
 </style>
 </head>
 <body>
@@ -613,7 +642,7 @@ body{
       <input type="range" id="tts-speed" min="0.5" max="3" step="0.1" value="1.0" oninput="updateTTSLabel()" title="Speech speed — drag any time, even while a voice is talking (0.5×–3.0×)">
       <span id="tts-label">1.0×</span>
     </div>
-    <div id="save-hint" title="Press Ctrl+S (Cmd+S on Mac) to save this page for offline use">💾 Ctrl+S to save offline</div>
+    <div id="save-hint" title="Press Ctrl+S (Cmd+S on Mac) to save this page for offline use">💾</div>
     <div id="ollama-status"><span class="dot"></span> Connecting…</div>
   </div>
 </div>
@@ -669,8 +698,8 @@ body{
         <div class="tb-actions">
           <button onclick="setTextScale(-1)" title="Smaller transcript text">A−</button>
           <button onclick="setTextScale(1)" title="Larger transcript text">A+</button>
-          <button onclick="copyTranscript()" title="Copy the whole transcript">⧉ Copy</button>
-          <button onclick="exportTranscript()" title="Download the transcript as a .txt file">⤓ Export</button>
+          <button onclick="copyTranscript()" title="Copy the whole transcript">⧉</button>
+          <button onclick="exportTranscript()" title="Download the transcript as a .txt file">⤓</button>
         </div>
       </div>
       <div id="coaching-box"></div>
@@ -680,14 +709,15 @@ body{
       <!-- INPUT — lives with the transcript so it moves & resizes together -->
       <div id="input-area">
         <div id="action-row">
-          <button class="act-btn obj" id="btn-obj" onclick="sendObjection()" title="Raise a general objection to the AI" disabled>⚠ Objection</button>
-          <button class="act-btn next" id="btn-next" onclick="nextPhase()" title="Advance to the next phase of the trial" disabled>Next Phase →</button>
-          <button class="act-btn coach" id="btn-coach" onclick="getCoaching()" title="Pause the trial and get strategic advice from the AI coach" disabled>💡 Coaching</button>
-          <button class="act-btn mic" id="btn-mic" onclick="toggleMic()" title="Toggle speech-to-text — click to start (types as you speak), click again to stop. It will NOT auto-send." disabled>🎤 Speak</button>
-          <button class="act-btn court" id="btn-court" onclick="enterCourtroom()" title="Full-screen courtroom view — outline figures with speech bubbles for whoever is speaking" disabled>🏛 Courtroom</button>
-          <button class="act-btn docs" id="btn-docs" onclick="toggleSplit()" title="Split-screen the real case PDFs — exhibits, affidavits, rulebooks, evaluation form" disabled>📑 Documents</button>
-          <button class="act-btn rules" id="btn-rules" onclick="openModal('rules')" title="Open witnesses, exhibits, charges, Y&G rules & full objection guide" disabled>📋 Rules & Docs</button>
-          <button class="act-btn pretrial" id="btn-pretrial" onclick="openPretrial()" title="Open the pre-trial motions conference" disabled>⚖️ Pre-Trial</button>
+          <button class="act-btn obj icon" id="btn-obj" onclick="sendObjection()" title="Objection (O)" disabled>⚠</button>
+          <button class="act-btn next" id="btn-next" onclick="nextPhase()" title="Advance to the next phase (N)" disabled>Next →</button>
+          <span class="act-spacer"></span>
+          <button class="act-btn mic icon" id="btn-mic" onclick="toggleMic()" title="Speak — speech-to-text, click to start/stop, won't auto-send (M)" disabled>🎤</button>
+          <button class="act-btn coach icon" id="btn-coach" onclick="getCoaching()" title="Coaching — strategic advice (C)" disabled>💡</button>
+          <button class="act-btn court icon" id="btn-court" onclick="enterCourtroom()" title="Full-screen courtroom view (K)" disabled>🏛</button>
+          <button class="act-btn docs icon" id="btn-docs" onclick="toggleSplit()" title="Documents — split-screen the real case PDFs (D)" disabled>📑</button>
+          <button class="act-btn rules icon" id="btn-rules" onclick="openModal('rules')" title="Rules, exhibits & objection guide (R)" disabled>📋</button>
+          <button class="act-btn pretrial icon" id="btn-pretrial" onclick="openPretrial()" title="Pre-Trial conference" disabled>⚖️</button>
         </div>
         <div id="text-row">
           <textarea id="user-input" placeholder="Type here, or click 🎤 Speak to dictate live. Enter to send · Shift+Enter for a new line." rows="2"></textarea>
@@ -1271,7 +1301,7 @@ function updatePhaseUI(){
     document.getElementById('svg-witness-label').textContent=w?w.name.split(' ')[0].toUpperCase():'WITNESS';
   } else {S.currentWitnessKey=null;document.getElementById('svg-witness-label').textContent='WITNESS';}
   const nb=document.getElementById('btn-next');
-  if(nb){const next=FLOW[idx+1];if(!next)nb.textContent='Trial Complete';else if(next.id==='verdict')nb.textContent='🔨 Verdict & Evaluation';else nb.textContent='Next: '+next.label+' →';}
+  if(nb){const next=FLOW[idx+1];if(!next)nb.textContent='Done';else if(next.id==='verdict')nb.textContent='🔨 Verdict';else{nb.textContent='Next →';nb.title='Next: '+next.label;}}
   const examPhase=f&&(f.kind==='direct'||f.kind==='cross');
   document.querySelectorAll('.qobj-chip').forEach(c=>c.disabled=!examPhase);
   // Active examination phase + the active speaker hint on the courtroom diagram
@@ -1800,7 +1830,7 @@ function exitCourtroom(){document.getElementById('courtroom-view').classList.rem
 // ═══════════ SPEECH-TO-TEXT (toggle; live updates; no auto-send) ═══════════
 let recognition=null,micActive=false,micFinal='',micUserStopped=false;
 function srSupported(){return ('webkitSpeechRecognition' in window)||('SpeechRecognition' in window);}
-function micUI(on){const b=document.getElementById('btn-mic');if(!b)return;if(on){b.classList.add('recording');b.textContent='🔴 Recording… (click to stop)';}else{b.classList.remove('recording');b.textContent='🎤 Speak';}}
+function micUI(on){const b=document.getElementById('btn-mic');if(!b)return;if(on){b.classList.add('recording');b.textContent='🔴';b.title='Recording… click to stop (M)';}else{b.classList.remove('recording');b.textContent='🎤';b.title='Speak — speech-to-text, click to start/stop, won\'t auto-send (M)';}}
 function startMic(){
   if(micActive||S.loading)return;
   if(!srSupported()){alert('Speech-to-text needs Chrome or Edge (Web Speech API).');return;}
