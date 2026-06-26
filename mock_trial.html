@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>State v. Harper Lynn — Mock Trial</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%96%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d0f;--surface:#16161a;--surface2:#1e1e24;--surface3:#26262e;
+  --border:#2a2a34;--border2:#383844;
+  --gold:#d4a843;--gold-dim:#7a6020;--gold-glow:rgba(212,168,67,0.15);
+  --text:#e8e6e0;--text-dim:#9090a0;--text-muted:#55556a;
+  --prosecution:#e05a3a;--defense:#4a8fd4;--judge:#b07de0;
+  --witness:#4ab870;--you:#d4a843;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:13px;height:100vh;display:grid;grid-template-rows:auto auto 1fr auto;overflow:hidden}
+
+/* HEADER */
+#header{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0}
+#header h1{font-family:'EB Garamond',serif;font-size:19px;color:var(--gold);letter-spacing:.04em;white-space:nowrap}
+#case-title{font-size:11px;color:var(--text-dim);font-style:italic;font-family:'EB Garamond',serif;flex:1;text-align:center}
+#header-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+#save-hint{font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;border:1px solid var(--border2);color:var(--text-muted);white-space:nowrap;cursor:default;user-select:none}
+#ollama-status{font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;border:1px solid var(--border2);color:var(--text-muted);display:flex;align-items:center;gap:5px;white-space:nowrap}
+#ollama-status .dot{width:6px;height:6px;border-radius:50%;background:var(--text-muted)}
+#ollama-status.connected .dot{background:#4ab870;box-shadow:0 0 5px #4ab870}
+#ollama-status.connected{color:#4ab870;border-color:#2a5a38}
+#ollama-status.error .dot{background:var(--prosecution)}
+#ollama-status.error{color:var(--prosecution);border-color:#5a2a1a}
+
+/* TTS SPEED */
+#tts-control{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted)}
+#tts-speed{width:70px;accent-color:var(--gold);cursor:pointer}
+#tts-label{color:var(--text-dim);font-size:10px;min-width:28px}
+
+/* PHASE TRACK */
+#phase-track{background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;display:flex;align-items:center;gap:0;overflow-x:auto;height:34px;flex-shrink:0}
+.pt-step{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);padding:0 10px;height:100%;display:flex;align-items:center;white-space:nowrap;border-bottom:2px solid transparent;transition:all .2s}
+.pt-step.done{color:var(--text-dim);border-bottom-color:var(--border2)}
+.pt-step.active{color:var(--gold);border-bottom-color:var(--gold)}
+.pt-sep{color:var(--text-muted);font-size:9px}
+
+/* MAIN */
+#main{display:grid;grid-template-columns:250px 1fr 230px;overflow:hidden}
+
+/* LEFT PANEL */
+#left-panel{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+.panel-section{padding:10px 12px;border-bottom:1px solid var(--border)}
+.panel-label{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-bottom:7px}
+#courtroom-svg-wrap{padding:10px 12px;border-bottom:1px solid var(--border)}
+.char-card{display:flex;align-items:center;gap:7px;padding:6px 7px;border-radius:5px;border:1px solid var(--border);margin-bottom:4px;transition:all .2s}
+.char-card.speaking{border-color:var(--gold);background:var(--gold-glow);box-shadow:0 0 8px var(--gold-glow)}
+.char-avatar{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;border:2px solid var(--border2);flex-shrink:0;transition:border-color .2s}
+.char-card.speaking .char-avatar{border-color:var(--gold)}
+.char-info{flex:1;min-width:0}
+.char-name{font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.char-role{font-size:9px;color:var(--text-muted)}
+.char-voice-bar{display:flex;align-items:center;gap:2px;opacity:0;transition:opacity .2s}
+.char-card.speaking .char-voice-bar{opacity:1}
+.vbar{width:3px;height:10px;border-radius:2px;background:var(--gold);animation:vbar .6s infinite ease-in-out}
+.vbar:nth-child(2){animation-delay:.1s;height:7px}.vbar:nth-child(3){animation-delay:.2s;height:13px}.vbar:nth-child(4){animation-delay:.15s;height:8px}
+@keyframes vbar{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1)}}
+
+/* CENTER */
+#transcript-wrap{display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+#coaching-box{display:none;margin:0 14px 6px;background:var(--surface2);border:1px solid var(--gold-dim);border-radius:6px;padding:9px 11px;font-size:12px;color:var(--text-dim);line-height:1.5}
+#coaching-box strong{color:var(--gold)}
+#transcript{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:9px}
+.t-entry{display:flex;flex-direction:column;gap:3px}
+.t-speaker{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.t-speaker.judge{color:var(--judge)}.t-speaker.prosecution{color:var(--prosecution)}.t-speaker.defense{color:var(--defense)}.t-speaker.witness{color:var(--witness)}.t-speaker.you{color:var(--you)}.t-speaker.system{color:var(--text-muted)}
+.t-text{font-family:'EB Garamond',serif;font-size:15px;line-height:1.65;padding:8px 12px;border-radius:5px;background:var(--surface);border-left:3px solid var(--border2)}
+.t-text.judge{border-left-color:var(--judge)}.t-text.prosecution{border-left-color:var(--prosecution)}.t-text.defense{border-left-color:var(--defense)}.t-text.witness{border-left-color:var(--witness)}.t-text.you{border-left-color:var(--you);background:rgba(212,168,67,.04)}.t-text.system{color:var(--text-dim);font-style:italic;font-size:12px;font-family:'Inter',sans-serif;border-left-color:transparent;background:transparent;padding-left:0}
+.typing-dots{display:flex;align-items:center;gap:4px;padding:9px 12px;background:var(--surface);border-radius:5px;border-left:3px solid var(--border2);width:fit-content}
+.tdot{width:5px;height:5px;border-radius:50%;background:var(--text-muted);animation:tdot 1.2s infinite}
+.tdot:nth-child(2){animation-delay:.2s}.tdot:nth-child(3){animation-delay:.4s}
+@keyframes tdot{0%,100%{opacity:.3;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}
+
+/* RIGHT PANEL */
+#right-panel{background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+.evidence-item{padding:5px 7px;border:1px solid var(--border);border-radius:4px;margin-bottom:3px;font-size:10px;line-height:1.4;cursor:pointer;transition:border-color .15s}
+.evidence-item:hover{border-color:var(--border2)}
+.evidence-item.admitted{border-color:var(--witness);background:rgba(74,184,112,.05)}
+.evidence-item.admitted .ev-status{color:var(--witness)}
+.evidence-item.excluded{border-color:var(--prosecution);background:rgba(224,90,58,.05);opacity:.6}
+.evidence-item.excluded .ev-status{color:var(--prosecution)}
+.evidence-item.pending .ev-status{color:var(--text-muted)}
+.ev-name{font-weight:600;color:var(--text);margin-bottom:1px;font-size:11px}
+.ev-status{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.obj-item{font-size:10px;padding:5px 6px;border-radius:4px;margin-bottom:3px;line-height:1.4}
+.obj-item.sustained{background:rgba(74,184,112,.08);border-left:2px solid var(--witness)}
+.obj-item.overruled{background:rgba(224,90,58,.08);border-left:2px solid var(--prosecution)}
+.obj-ruling{font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:.08em}
+.obj-item.sustained .obj-ruling{color:var(--witness)}.obj-item.overruled .obj-ruling{color:var(--prosecution)}
+
+/* QUICK OBJECTIONS */
+#quick-obj-section{background:rgba(224,90,58,.03)}
+#quick-obj{display:flex;flex-wrap:wrap;gap:4px}
+.qobj-chip{font-size:9.5px;font-weight:600;letter-spacing:.02em;padding:4px 8px;border-radius:12px;border:1px solid #5a2a1a;color:var(--prosecution);background:rgba(224,90,58,.06);cursor:pointer;font-family:'Inter',sans-serif;transition:all .12s;white-space:nowrap}
+.qobj-chip:hover{background:rgba(224,90,58,.2);border-color:var(--prosecution)}
+.qobj-chip:active{transform:scale(.94)}
+.qobj-chip:disabled{opacity:.35;cursor:not-allowed}
+
+/* INPUT */
+#input-area{background:var(--surface);border-top:1px solid var(--border);padding:9px 14px;flex-shrink:0}
+#action-row{display:flex;gap:5px;margin-bottom:7px;flex-wrap:wrap}
+.act-btn{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:4px 10px;border-radius:4px;cursor:pointer;border:1px solid;background:none;font-family:'Inter',sans-serif;transition:all .15s}
+.act-btn:disabled{opacity:.35;cursor:not-allowed}
+.act-btn.obj{color:var(--prosecution);border-color:#5a2a1a}
+.act-btn.obj:hover:not(:disabled){background:rgba(224,90,58,.1)}
+.act-btn.next{color:var(--gold);border-color:var(--gold-dim)}
+.act-btn.next:hover:not(:disabled){background:var(--gold-glow)}
+.act-btn.coach{color:var(--text-dim);border-color:var(--border2)}
+.act-btn.coach:hover:not(:disabled){background:var(--surface2)}
+.act-btn.mic{color:var(--witness);border-color:#2a5a38}
+.act-btn.mic:hover:not(:disabled){background:rgba(74,184,112,.1)}
+.act-btn.mic.recording{color:#ff4444;border-color:#882222;background:rgba(255,68,68,.1);animation:pulse-rec 1s infinite}
+.act-btn.rules{color:#a0c4ff;border-color:#2a3a5a}
+.act-btn.rules:hover:not(:disabled){background:rgba(160,196,255,.08)}
+.act-btn.pretrial{color:#c084fc;border-color:#4a2a6a}
+.act-btn.pretrial:hover:not(:disabled){background:rgba(192,132,252,.08)}
+@keyframes pulse-rec{0%,100%{opacity:1}50%{opacity:.6}}
+#text-row{display:flex;gap:7px;align-items:flex-end}
+#user-input{flex:1;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:'EB Garamond',serif;font-size:16px;padding:8px 11px;border-radius:5px;resize:none;min-height:40px;max-height:100px;line-height:1.5;outline:none;transition:border-color .15s}
+#user-input:focus{border-color:var(--gold-dim)}
+#user-input::placeholder{color:var(--text-muted);font-style:italic}
+#send-btn{background:var(--gold);color:#1a1200;border:none;font-weight:700;font-size:13px;padding:8px 15px;border-radius:5px;cursor:pointer;font-family:'Inter',sans-serif;height:40px;transition:opacity .15s;white-space:nowrap}
+#send-btn:hover{opacity:.85}
+#send-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* SETUP SCREEN */
+#setup-screen{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
+#setup-card{background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:30px;max-width:580px;width:100%}
+#setup-card h2{font-family:'EB Garamond',serif;font-size:26px;color:var(--gold);margin-bottom:4px}
+#setup-card .sub{color:var(--text-dim);font-size:12px;margin-bottom:22px;font-style:italic}
+.s-label{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-bottom:7px;margin-top:16px}
+.s-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.s-opt{background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:11px;cursor:pointer;transition:all .15s;user-select:none}
+.s-opt:hover{border-color:var(--gold-dim)}
+.s-opt.sel{border-color:var(--gold);background:rgba(212,168,67,.07)}
+.s-opt .t{font-weight:600;font-size:12px;margin-bottom:3px}
+.s-opt .d{font-size:11px;color:var(--text-dim);line-height:1.4}
+#model-row{display:flex;gap:7px;align-items:center;margin-top:4px}
+#ollama-model-input{flex:1;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:7px 11px;border-radius:5px;font-family:'Inter',sans-serif;font-size:12px;outline:none}
+#start-btn{width:100%;margin-top:22px;background:var(--gold);color:#1a1200;border:none;font-weight:700;font-size:14px;padding:12px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:.04em;transition:opacity .15s}
+#start-btn:hover{opacity:.88}
+
+/* MODAL (rules + evidence viewer) */
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:100;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
+#modal-overlay.open{display:flex}
+#modal-card{background:var(--surface);border:1px solid var(--border2);border-radius:10px;max-width:700px;width:100%;margin:auto}
+#modal-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+#modal-title{font-family:'EB Garamond',serif;font-size:20px;color:var(--gold)}
+#modal-close{background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;padding:2px 6px;border-radius:4px}
+#modal-close:hover{background:var(--surface2)}
+#modal-tabs{display:flex;border-bottom:1px solid var(--border);padding:0 18px}
+.modal-tab{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:8px 14px;cursor:pointer;color:var(--text-muted);border-bottom:2px solid transparent;transition:all .15s}
+.modal-tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+#modal-body{padding:18px;max-height:65vh;overflow-y:auto;font-size:13px;line-height:1.7;color:var(--text-dim)}
+#modal-body h3{font-family:'EB Garamond',serif;font-size:17px;color:var(--text);margin:16px 0 6px;border-bottom:1px solid var(--border);padding-bottom:4px}
+#modal-body h3:first-child{margin-top:0}
+#modal-body h4{font-size:12px;font-weight:700;color:var(--gold);margin:12px 0 4px;text-transform:uppercase;letter-spacing:.06em}
+#modal-body p{margin-bottom:8px}
+#modal-body ul{margin:4px 0 8px 16px}
+#modal-body li{margin-bottom:3px}
+#modal-body .ex-block{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:10px}
+#modal-body .ex-block .ex-title{font-weight:700;color:var(--text);margin-bottom:4px;font-size:12px}
+#modal-body .ex-block .ex-content{font-size:12px;white-space:pre-wrap}
+
+/* PRETRIAL MODAL */
+#pretrial-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:110;align-items:center;justify-content:center;padding:20px}
+#pretrial-overlay.open{display:flex}
+#pretrial-card{background:var(--surface);border:1px solid #4a2a6a;border-radius:10px;max-width:640px;width:100%;max-height:85vh;display:flex;flex-direction:column}
+#pretrial-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+#pretrial-title{font-family:'EB Garamond',serif;font-size:20px;color:#c084fc}
+#pretrial-close{background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;padding:2px 6px}
+#pretrial-transcript{flex:1;overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:8px}
+.pt-entry{display:flex;flex-direction:column;gap:2px}
+.pt-entry .pt-sp{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.pt-entry .pt-sp.judge{color:var(--judge)}.pt-entry .pt-sp.you{color:#c084fc}.pt-entry .pt-sp.opp{color:var(--text-dim)}
+.pt-entry .pt-tx{font-family:'EB Garamond',serif;font-size:14px;line-height:1.6;padding:7px 11px;border-radius:5px;background:var(--surface2);border-left:2px solid var(--border)}
+.pt-entry .pt-tx.judge{border-left-color:var(--judge)}.pt-entry .pt-tx.you{border-left-color:#c084fc}.pt-entry .pt-tx.opp{border-left-color:var(--border2)}
+#pretrial-input-row{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0}
+#pretrial-input{flex:1;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:'EB Garamond',serif;font-size:14px;padding:7px 11px;border-radius:5px;outline:none}
+#pretrial-input:focus{border-color:#4a2a6a}
+#pretrial-send{background:#4a2a6a;color:#e0c0ff;border:none;font-weight:600;font-size:12px;padding:7px 14px;border-radius:5px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap}
+#pretrial-send:hover{opacity:.85}
+#pretrial-send:disabled{opacity:.4;cursor:not-allowed}
+#pretrial-done-btn{display:block;width:calc(100% - 36px);margin:0 18px 14px;background:var(--gold);color:#1a1200;border:none;font-weight:700;font-size:13px;padding:10px;border-radius:6px;cursor:pointer;font-family:'Inter',sans-serif}
+
+/* VERDICT */
+#verdict-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:150;align-items:center;justify-content:center;padding:20px}
+#verdict-card{background:var(--surface);border:1px solid var(--gold);border-radius:10px;padding:28px;max-width:520px;width:100%;max-height:80vh;overflow-y:auto}
+#verdict-card h2{font-family:'EB Garamond',serif;font-size:30px;color:var(--gold);margin-bottom:12px;text-align:center}
+#verdict-body{font-size:13px;color:var(--text-dim);line-height:1.7;white-space:pre-wrap}
+#restart-btn{display:block;width:100%;margin-top:18px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:10px;border-radius:5px;cursor:pointer;font-family:'Inter',sans-serif;font-size:13px;font-weight:600}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* ═══════════ SLEEK REFINEMENTS ═══════════ */
+body{background:radial-gradient(1100px 560px at 72% -12%,#17171e 0%,#0d0d0f 58%)}
+#header{padding:10px 18px;background:linear-gradient(180deg,#1b1b22,#141418);box-shadow:0 1px 0 rgba(255,255,255,.03),0 2px 12px rgba(0,0,0,.3)}
+#header h1{font-size:20px}
+#case-title{opacity:.85}
+#save-hint,#ollama-status,#tts-control{border-radius:9px}
+#tts-control{padding:3px 9px;border:1px solid var(--border2)}
+#phase-track{height:38px;background:linear-gradient(180deg,#141418,#101014)}
+.pt-step{border-radius:7px 7px 0 0}
+.pt-step.active{background:linear-gradient(180deg,rgba(212,168,67,.13),transparent)}
+.pt-step.done{opacity:.8}
+
+#left-panel,#right-panel{background:#131318}
+.panel-label{margin-bottom:9px;opacity:.85}
+.char-card{border-radius:9px;padding:7px 9px;background:rgba(255,255,255,.014);border-color:rgba(255,255,255,.05)}
+.char-card:hover{border-color:var(--border2);background:rgba(255,255,255,.035)}
+.char-card.speaking{box-shadow:0 0 0 1px var(--gold),0 6px 22px var(--gold-glow)}
+.char-avatar{width:28px;height:28px}
+
+.evidence-item{border-radius:8px;padding:7px 9px;background:rgba(255,255,255,.014);border-color:rgba(255,255,255,.05);transition:transform .12s,border-color .15s,background .15s}
+.evidence-item:hover{background:rgba(255,255,255,.04);transform:translateX(2px)}
+.qobj-chip{border-radius:9px;padding:5px 9px}
+.obj-item{border-radius:7px}
+
+#transcript{padding:16px 22px;gap:11px}
+.t-text{border-radius:12px;padding:10px 15px;box-shadow:0 1px 4px rgba(0,0,0,.28)}
+.t-text.you{background:linear-gradient(180deg,rgba(212,168,67,.08),rgba(212,168,67,.02))}
+#coaching-box{border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.3)}
+
+#input-area{padding:11px 18px;background:linear-gradient(180deg,#15151b,#101014);box-shadow:0 -1px 0 rgba(255,255,255,.03),0 -6px 18px rgba(0,0,0,.25)}
+#action-row{gap:6px}
+.act-btn{padding:6px 13px;border-radius:9px;font-weight:600;transition:transform .12s,background .15s,border-color .15s,box-shadow .15s}
+.act-btn:hover:not(:disabled){transform:translateY(-1px)}
+.act-btn.mic.recording{box-shadow:0 0 0 1px #ff4444,0 0 18px rgba(255,68,68,.45)}
+#user-input{border-radius:11px;padding:10px 14px}
+#send-btn{border-radius:11px;font-weight:700;box-shadow:0 3px 14px var(--gold-glow);transition:transform .12s,box-shadow .15s,opacity .15s}
+#send-btn:hover{transform:translateY(-1px);box-shadow:0 5px 20px var(--gold-glow)}
+
+#setup-card{border-radius:18px;box-shadow:0 30px 90px rgba(0,0,0,.6);background:linear-gradient(180deg,#1b1b22,#141418)}
+.s-opt{border-radius:11px;transition:transform .12s,border-color .15s,background .15s}
+.s-opt:hover{transform:translateY(-1px)}
+#start-btn{border-radius:13px;box-shadow:0 10px 28px var(--gold-glow);transition:transform .12s,opacity .15s,box-shadow .15s}
+#start-btn:hover{transform:translateY(-1px)}
+
+#modal-card,#pretrial-card,#verdict-card{border-radius:16px;box-shadow:0 30px 90px rgba(0,0,0,.65)}
+.modal-tab{border-radius:7px 7px 0 0}
+#modal-body .ex-block{border-radius:9px}
+
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#2f2f3a;border-radius:7px;border:2px solid #131318}::-webkit-scrollbar-thumb:hover{background:#3c3c4a}
+</style>
+</head>
+<body>
+
+<!-- ENV WARNING (shown only when opened as file://) -->
+<div id="env-warning" style="display:none;position:fixed;top:0;left:0;right:0;z-index:300;background:#5a1f12;color:#ffd9cf;font-size:13px;text-align:center;padding:11px 16px;border-bottom:1px solid #e05a3a;font-family:'Inter',sans-serif;line-height:1.5">⚠ You opened this page directly as a file (<code>file://</code>), so the AI backend (Ollama) is blocked by the browser. Run <b>Start-MockTrial.bat</b> or open <b>http://localhost:8080/mock_trial.html</b> in Chrome instead.</div>
+
+<!-- SETUP -->
+<div id="setup-screen">
+  <div id="setup-card">
+    <h2>⚖️ State v. Harper Lynn</h2>
+    <p class="sub">YMCA Texas Y&G 2025–2026 · "Local Politics, Old Enemies, Deadly Explosion"</p>
+    <div class="s-label">Your Role</div>
+    <div class="s-grid">
+      <div class="s-opt sel" data-g="role" data-v="prosecution" onclick="sel(this)">
+        <div class="t" style="color:#e05a3a">Prosecution</div>
+        <div class="d">Argue Harper Lynn is guilty. AI plays defense & all witnesses.</div>
+      </div>
+      <div class="s-opt" data-g="role" data-v="defense" onclick="sel(this)">
+        <div class="t" style="color:#4a8fd4">Defense</div>
+        <div class="d">Defend Harper Lynn. AI plays prosecution & all witnesses.</div>
+      </div>
+    </div>
+    <div class="s-label">AI Difficulty</div>
+    <div class="s-grid">
+      <div class="s-opt" data-g="diff" data-v="beginner" onclick="sel(this)">
+        <div class="t">Beginner</div>
+        <div class="d">Good for learning structure. Relaxed objections.</div>
+      </div>
+      <div class="s-opt sel" data-g="diff" data-v="competitive" onclick="sel(this)">
+        <div class="t">Competitive</div>
+        <div class="d">Y&G district/state level. Tight, sharp, real challenge.</div>
+      </div>
+    </div>
+    <div class="s-label">Ollama Model</div>
+    <div id="model-row">
+      <input id="ollama-model-input" type="text" value="llama3" placeholder="e.g. llama3, mistral">
+      <span style="font-size:11px;color:var(--text-muted)">Run <code style="color:var(--text-dim)">ollama serve</code> first</span>
+    </div>
+    <button id="start-btn" onclick="startTrial()">Call the Court to Order →</button>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div id="header">
+  <h1>⚖️ Mock Trial</h1>
+  <span id="case-title">State v. Harper Lynn · Murder · Conspiracy · Solicitation</span>
+  <div id="header-right">
+    <div id="tts-control">
+      <span style="font-size:10px">🔊</span>
+      <input type="range" id="tts-speed" min="0.6" max="1.8" step="0.1" value="1.0" oninput="updateTTSLabel()">
+      <span id="tts-label">1.0×</span>
+    </div>
+    <div id="save-hint" title="Press Ctrl+S (Cmd+S on Mac) to save this page for offline use">💾 Ctrl+S to save offline</div>
+    <div id="ollama-status"><span class="dot"></span> Connecting…</div>
+  </div>
+</div>
+
+<!-- PHASE TRACK -->
+<div id="phase-track">
+  <div class="pt-step active" id="pt-pretrial">Pre-Trial</div>
+  <div class="pt-sep">›</div>
+  <div class="pt-step" id="pt-opening">Opening</div>
+  <div class="pt-sep">›</div>
+  <div class="pt-step" id="pt-direct1">Direct #1</div>
+  <div class="pt-sep">›</div>
+  <div class="pt-step" id="pt-cross1">Cross #1</div>
+  <div class="pt-sep">›</div>
+  <div class="pt-step" id="pt-direct2">Direct #2</div>
+  <div class="pt-sep">›</div>
+  <div class="pt-step" id="pt-cross2">Cross #2</div>
+  <div class="pt-sep">›</div>
+  <div class="pt-step" id="pt-direct3">Direct #3</div>
+  <div class="pt-sep">›</div>
+  <div class="pt-step" id="pt-cross3">Cross #3</div>
+  <div class="pt-sep">›</div>
+  <div class="pt-step" id="pt-closing">Closing</div>
+  <div class="pt-sep">›</div>
+  <div class="pt-step" id="pt-verdict">Verdict</div>
+</div>
+
+<div id="main">
+  <!-- LEFT -->
+  <div id="left-panel">
+    <div id="courtroom-svg-wrap">
+      <div class="panel-label">Courtroom</div>
+      <svg viewBox="0 0 252 170" xmlns="http://www.w3.org/2000/svg" style="width:100%;border-radius:4px">
+        <rect width="252" height="170" fill="#16161a"/>
+        <rect x="86" y="8" width="80" height="24" rx="4" fill="#1e1e24" stroke="#2a2a34" stroke-width="1.5" id="svg-judge"/>
+        <text x="126" y="24" text-anchor="middle" fill="#b07de0" font-size="7.5" font-family="Inter" font-weight="700">JUDGE</text>
+        <rect x="174" y="44" width="60" height="22" rx="4" fill="#1e1e24" stroke="#2a2a34" stroke-width="1.5" id="svg-witness"/>
+        <text x="204" y="59" text-anchor="middle" fill="#55556a" font-size="7" font-family="Inter" font-weight="600" id="svg-witness-label">WITNESS</text>
+        <rect x="18" y="76" width="90" height="22" rx="4" fill="#1e1e24" stroke="#2a2a34" stroke-width="1.5" id="svg-prosecution"/>
+        <text x="63" y="91" text-anchor="middle" fill="#55556a" font-size="7" font-family="Inter" font-weight="600">PROSECUTION</text>
+        <rect x="144" y="76" width="90" height="22" rx="4" fill="#1e1e24" stroke="#2a2a34" stroke-width="1.5" id="svg-defense"/>
+        <text x="189" y="91" text-anchor="middle" fill="#55556a" font-size="7" font-family="Inter" font-weight="600">DEFENSE</text>
+        <rect x="18" y="114" width="216" height="28" rx="4" fill="#1e1e24" stroke="#2a2a34" stroke-width="1.5"/>
+        <text x="126" y="132" text-anchor="middle" fill="#55556a" font-size="7" font-family="Inter" font-weight="600">JURY / EVALUATOR</text>
+        <rect x="100" y="47" width="52" height="19" rx="3" fill="#1e1e24" stroke="#2a2a34" stroke-width="1" id="svg-podium"/>
+        <text x="126" y="60" text-anchor="middle" fill="#55556a" font-size="6.5" font-family="Inter" id="svg-podium-label">PODIUM</text>
+      </svg>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Speaking</div>
+      <div id="char-list"></div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Phase Guide</div>
+      <div style="font-size:11px;color:var(--text-dim);line-height:1.6" id="phase-guide">—</div>
+    </div>
+  </div>
+
+  <!-- CENTER -->
+  <div id="transcript-wrap">
+    <div id="coaching-box"></div>
+    <div id="transcript"></div>
+  </div>
+
+  <!-- RIGHT -->
+  <div id="right-panel">
+    <div class="panel-section" id="quick-obj-section">
+      <div class="panel-label">⚠ Quick Objections <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— click to raise</span></div>
+      <div id="quick-obj"></div>
+      <div style="font-size:9px;color:var(--text-muted);margin-top:5px;line-height:1.4">Hover a chip for the full phrasing. Use during examination — not during opening/closing.</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Evidence (click to view)</div>
+      <div id="evidence-list"></div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Objections Log</div>
+      <div id="obj-log"></div>
+    </div>
+  </div>
+</div>
+
+<!-- INPUT -->
+<div id="input-area">
+  <div id="action-row">
+    <button class="act-btn obj" id="btn-obj" onclick="sendObjection()" title="Raise a general objection to the AI" disabled>⚠ Objection</button>
+    <button class="act-btn next" id="btn-next" onclick="nextPhase()" title="Advance to the next phase of the trial" disabled>Next Phase →</button>
+    <button class="act-btn coach" id="btn-coach" onclick="getCoaching()" title="Pause the trial and get strategic advice from the AI coach" disabled>💡 Coaching</button>
+    <button class="act-btn mic" id="btn-mic" title="Hold this button (or hold the SPACE key) and speak — release to send" disabled>🎤 Hold to Talk</button>
+    <button class="act-btn rules" id="btn-rules" onclick="openModal('rules')" title="Open witnesses, exhibits, charges, Y&G rules & full objection guide" disabled>📋 Rules & Docs</button>
+    <button class="act-btn pretrial" id="btn-pretrial" onclick="openPretrial()" title="Open the pre-trial motions conference" disabled>⚖️ Pre-Trial</button>
+  </div>
+  <div id="text-row">
+    <textarea id="user-input" placeholder="Type your statement or question — Enter to send, Shift+Enter for a new line. Or hold SPACE / the mic button to talk." rows="2"></textarea>
+    <button id="send-btn" onclick="sendMsg()" disabled>Send ▸</button>
+  </div>
+</div>
+
+<!-- RULES / EVIDENCE MODAL -->
+<div id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div id="modal-card">
+    <div id="modal-header">
+      <div id="modal-title">Case Reference</div>
+      <button id="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modal-tabs">
+      <div class="modal-tab active" onclick="switchTab('witnesses')">Witnesses</div>
+      <div class="modal-tab" onclick="switchTab('exhibits')">Exhibits</div>
+      <div class="modal-tab" onclick="switchTab('charges')">Charges & Law</div>
+      <div class="modal-tab" onclick="switchTab('rules')">Y&G Rules</div>
+      <div class="modal-tab" onclick="switchTab('objections')">Objections</div>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- PRETRIAL MODAL -->
+<div id="pretrial-overlay" onclick="if(event.target===this)closePretrial()">
+  <div id="pretrial-card">
+    <div id="pretrial-header">
+      <div id="pretrial-title">⚖️ Pre-Trial Motions</div>
+      <button id="pretrial-close" onclick="closePretrial()">✕</button>
+    </div>
+    <div id="pretrial-transcript"></div>
+    <button id="pretrial-done-btn" onclick="closePretrial()">Done — Begin Trial →</button>
+    <div id="pretrial-input-row">
+      <input id="pretrial-input" type="text" placeholder="File a motion, raise a stipulation question, or ask the judge anything pre-trial…">
+      <button id="pretrial-send" onclick="sendPretrialMsg()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- VERDICT -->
+<div id="verdict-overlay">
+  <div id="verdict-card">
+    <h2>🔨 Verdict &amp; Argument Evaluation</h2>
+    <div id="verdict-body"></div>
+    <button id="restart-btn" onclick="location.reload()">Try Again</button>
+  </div>
+</div>
+
+<script>
+// ═══════════ CASE DATA ═══════════
+const CASE = {
+  title:"State v. Harper Lynn", caseNo:"25-123456",
+  charges:"Count 1: Murder (§19.02) | Count 2: Criminal Conspiracy (§15.02) | Count 3: Criminal Solicitation (§15.03)",
+  facts:[
+    "Victim: Dakota 'Kody' Maddox, City Councilmember, died ~2:41 a.m. Feb 3, 2025 in car explosion at his home (215 Hawthorne St).",
+    "Cause: Ignition-triggered IED — aluminum powder + ammonium nitrate under Toyota Camry. Homicide confirmed by Medical Examiner.",
+    "Defendant: Harper Lynn, fellow councilmember, political rival of Maddox since high school.",
+    "Burner phone linked to Lynn's 2023 campaign pinged cell tower 1.8-mile radius from Maddox's home at 2:14 a.m. night of explosion.",
+    "Lynn's city laptop had deleted searches: 'how to spoof a phone number in Texas', 'untraceable cell phone carriers', 'when is metadata permanent'. Searched in guest tab, unsecured office.",
+    "Deleted X post July 2024: 'You'll get what's coming to you, 86KM @KodyM' (deleted within 39 min).",
+    "June 2024 council meeting: Lynn shouted 'You're the rot in this city—and you'll be gone one way or another! February couldn't come fast enough.' Captured on video (Exhibit 2).",
+    "$10,000 wire transfer from Lynn's account Jan 27, 2025 at 8:13 p.m. to 'Haven Consulting LLC' (unregistered). Transfer from home WiFi, correct credentials, 2FA passed. Lynn claims fraud.",
+    "Victor Sloane (convicted felon, second-degree murder) seen leaving Lynn's City Hall office ~9:45 p.m. Jan 27. Whereabouts now unknown.",
+    "40-lb bag of GreenPro ammonium nitrate fertilizer found in Lynn's garage Feb 6. NOT forensically matched to the device.",
+    "AirTag found on Maddox's car registered to Albany NY resident — no connection to Lynn established.",
+    "Gloria Parker (neighbor, 2 houses from Maddox) saw TALL figure (~6ft, limp, broad shoulders) near scene ~2:25 a.m. — does NOT match Lynn (5'4\") or Sloane (5'6\").",
+    "Gigi's log (Exhibit 13): dark gray truck at Maddox house 2:30 a.m., silver sedan (Honda?) passing 2:31 a.m., EXPLOSION 2:35 a.m.",
+    "NO fingerprints on device. NO eyewitness placing Lynn at scene. NO direct proof she built or planted bomb. All evidence is circumstantial or digital.",
+    "Lynn voluntarily surrendered laptop, no counsel requested — unusual for homicide suspect per Det. Reaves.",
+    "Lynn was still in budget meeting at City Hall at 8:13 p.m. Jan 27 — cannot have initiated transfer from home WiFi if not there."
+  ],
+  witnesses:{
+    prosecution:[
+      { id:"reaves", name:"Jordan Reaves", role:"Lead Detective, RCPD", voiceKey:"witness0p",
+        bio:"42, 17-yr RCPD veteran, Major Crimes. Master Peace Officer cert. Arrived scene 6:30 a.m. (after bomb squad cleared it). Personally saw Victor Sloane leaving Lynn's office Jan 27. Admits: no fingerprints on device, no eyewitness placing Lynn at scene, fertilizer not forensically matched, tower radius is 1.8 miles covering library and Whataburger. Security footage was auto-deleted before he could save it." },
+      { id:"tiernan", name:"Jamie Tiernan", role:"Friend of Both Parties", voiceKey:"witness1p",
+        bio:"27, knew Harper and Kody since 7th grade. Witnessed 'rot in this city' outburst. Heard Lynn say 'One day he'll push the wrong person too far' (Jan 2025 party). Jan 27: saw Lynn ask if Kody still parked in his driveway overnight, then say 'Good to know, in case someone needs to send him a message.' Was fired from retail job at 19 for 'inventory discrepancies' — potential credibility attack. Admits she never thought Harper was capable of violence." },
+      { id:"knox", name:"Riley Knox", role:"City IT Systems Admin", voiceKey:"witness2p",
+        bio:"34, 9-yr city IT admin. Retrieved deleted X post and deleted laptop searches via forensic software. Confirms office laptop was unsecured (no badge entry, no camera, generic password, guest tab used). Lynn's city credentials used at library terminal before anonymous ethics tip was sent. Admits: cannot confirm who typed laptop searches, office was accessed by multiple staffers, no biometric tracking." }
+    ],
+    defense:[
+      { id:"lynn", name:"Harper Lynn", role:"Defendant, Councilmember", voiceKey:"witness0d",
+        bio:"31, councilmember since 2023, immigration attorney. 5'4\". Disputes all charges. Admits political hostility with Maddox — never personal. Burner phone lost since 2023, used by campaign volunteers. Interns had open laptop access. Bank transfer was fraud (filed claim next morning). Was in budget meeting at City Hall at 8:13 p.m. — couldn't have sent wire from home WiFi. Sloane came about zoning permits, didn't know his record." },
+      { id:"torres", name:"Zane Torres", role:"Digital Forensics Expert", voiceKey:"witness1d",
+        bio:"38, cybersecurity consultant 14 yrs. CEH, CHFI, CISSP certified. Cell tower covers 1.8-mile radius — includes library, Whataburger, residential streets. Phones can be SIM-swapped/cloned. Laptop searches in guest tab, no biometric ID possible. Library router had default admin credentials (not updated since 2020) — could be spoofed. Digital evidence reliability: 3-4/10. No unique MAC address, no end-to-end traceability." },
+      { id:"parker", name:"Gloria Parker 'Gigi'", role:"Neighbor / Eyewitness", voiceKey:"witness2d",
+        bio:"68, retired art teacher, 41 yrs on Riverbend Circle, 2 houses from Maddox. Awake night of explosion (insomnia). Saw Kody alive and alone at his car ~2:25 a.m. Saw figure near driveway: TALL (~6ft), broad shoulders, walked with LEFT-LEG LIMP — definitively NOT Harper (5'4\") or Sloane (~5'6\"). Heard truck/SUV (not sedan) speed off before explosion. Her log shows dark gray truck at scene. Was brushed off by Det. Reaves — 'we'll follow up later' — they never did." }
+    ]
+  },
+  evidence:[
+    { id:"ex1",  num:"1",  name:"Medical Examiner's Report",        desc:"COD: blast/thermal trauma. Homicide. Time: ~2:43 a.m. Feb 3.",
+      content:"MEDICAL EXAMINER'S REPORT\nCase No. ME-25-0281 · Date: Feb 5, 2025\nDecedent: Dakota 'Kody' Maddox, DOB July 9, 1993, Male, 31\n\nCAUSE OF DEATH: Blast injuries and thermal trauma due to vehicle explosion.\nMANNER OF DEATH: Homicide.\nESTIMATED TIME OF DEATH: Approximately 2:43 a.m., consistent with ignition.\n\nFINDINGS:\n• Extensive thermal injuries and blast-related trauma to torso and lower extremities\n• Soot/particulate consistent with vehicle-based combustion\n• No apparent defensive injuries to hands, arms, or face\n• Pulmonary and cardiac damage consistent with blast force\n• Severe lacerations to abdomen and pelvic area\n• Toxicology: Ethanol negative, no drugs/prescriptions\n\nSigned: Dr. Lenora Castillo, M.D., Chief Medical Examiner, Redwood County" },
+    { id:"ex2",  num:"2",  name:"City Council Transcript",          desc:"June 14, 2024 — captures the 'rot in this city' outburst.",
+      content:"REDWOOD CROSSING CITY COUNCIL MEETING TRANSCRIPT\nDate: June 14, 2024 · Certified Log ID: RC-2024-JUN14-FULL\n\n[00:07:38] Councilmember Lynn (raising voice):\n\"You're the rot in this city—and you'll be gone one way or another! February couldn't come fast enough.\"\n\n[00:07:44] [AUDIBLE MURMURS FROM AUDIENCE]\n\n[00:07:47] Chairperson Montoya:\n\"Councilmember Lynn, I must ask you to withdraw that statement.\"\n\n[00:07:53] Lynn: \"Withdrawn.\"\n\n[00:07:54] Maddox: \"How professional.\"\n\nContext: Exchange occurred during debate over Lynn's Ethics Reform Ordinance (Ordinance 14-2024), which Maddox had repeatedly blocked. Lynn had accused Maddox of resisting transparency measures.\n\nCertified by: Monica Epps, City Clerk, June 17, 2024" },
+    { id:"ex3",  num:"3",  name:"X (Twitter) Record — Deleted Post", desc:"Deleted post '86KM @KodyM', July 17, 2024.",
+      content:"X CORP. RECORDS RESPONSE · Case Ref: RCPD-INV-3258\nAccount: @Harper4Redwood (Harper Lynn)\n\nARCHIVED POST:\nText: \"You'll get what's coming to you, 86KM @KodyM.\"\nHashtags: #CleanUpCityHall #EthicsMatter\nCreated: July 17, 2024 – 9:24 p.m. CST\nDeleted: July 17, 2024 – 10:03 p.m. CST (39 min later)\nDeleted By: Account User\nDevice: Desktop Web Browser (Chrome)\nLocation Tag: Redwood Crossing, TX\nLikes: 6 · Retweets: 2 · Replies: 3\n\nNOTE: '86' is commonly understood to mean 'remove' or 'kill.' 'KM' = Kody Maddox.\n\nCertified: Tasha M. Ridley, Legal Compliance Analyst, X Corp." },
+    { id:"ex4",  num:"4",  name:"MetroOne Cell Tower Records",       desc:"Burner phone 1.8-mile radius ping at 2:14 a.m. Feb 3.",
+      content:"CELL SITE LOCATION INFORMATION (CSLI)\nDevice: 'Burner Phone A' · IMEI: 356982105661720\n\nTOWER USAGE EVENTS:\n• 1/27/2025 – 9:08 p.m.: Tower M1-0629 (Civic District / near City Hall) — SMS outbound\n• 2/01/2025 – 12:22 p.m.: Tower M1-0652 (North Civic Zone) — Passive handshake\n• 2/03/2025 – 2:14 a.m.: Tower M1-0670 (Willow Bend SW Sector) — Location register/idle\n\nNIGHT OF INCIDENT (2:14 a.m.):\nTower M1-0670 · Coverage Radius: 1.8 miles (terrain-adjusted)\nArea includes: 100-block Willow Bend Dr (Maddox's residence), Redwood Crossing Library, Whataburger, multiple residential/commercial locations.\nNO tower sector narrowing available. No voice or data call initiated — passive idle signal only.\n\nLIMITATIONS: No GPS-level geolocation. SIM activated without ID under prepaid policy. No subscriber name on file.\n\nCertified: Alicia Montrose, Custodian of Records, MetroOne Prepaid Wireless" },
+    { id:"ex5",  num:"5",  name:"Redwood Record Ethics Tip",         desc:"Anonymous tip from library IP (same terminal as Lynn).",
+      content:"ETHICS TIP EMAIL REPORT · The Redwood Record\nDate Received: January 26, 2025 · Time: 4:18 p.m. CST\nSender: redwoodwatchdog@protonmail.com\nOriginating IP: 10.0.4.112\nGeolocation: Redwood Crossing Public Library — Public Access Terminal #4\n\nEMAIL BODY:\n\"You need to start asking questions about Councilmember Kody Maddox and his campaign finances. Look into how his construction donor landed that storm drainage contract in the Hollow Creek development. The Ethics Office buried it—check the Planning Commission's meeting minutes from last September. He's not the public servant he pretends to be. The people of Redwood Crossing deserve better.\"\n— A Concerned Citizen\n\nNOTE: Lynn's city credentials (harperlynn.council@city.gov) were used on the SAME terminal (Station #4) from 3:58–4:40 p.m. that day — approximately 38 minutes before this tip was sent." },
+    { id:"ex6",  num:"6",  name:"City IT Laptop Report",             desc:"Deleted searches: spoofing, untraceable carriers, metadata.",
+      content:"CITY IT REPORT — COUNCILMEMBER HARPER LYNN'S LAPTOP\nDevice: Dell Latitude 5520 (Asset RWC-LTP-0411)\nPrepared: Feb 11, 2025 · By: Riley Knox, IT Systems Administrator\n\nRECOVERED DELETED SEARCHES (Chrome guest tab):\n• 'how to spoof a phone number in Texas' — Jan 12, 2025 – 10:21 p.m.\n• 'untraceable cell phone carriers' — Jan 14, 2025 – 11:06 p.m.\n• 'burner phone laws Texas' — Jan 16, 2025 – 8:18 p.m.\n• 'when is metadata permanent' — Jan 17, 2025 – 7:03 p.m.\n• 'anonymous ethics complaints Texas' — Jan 19, 2025 – 9:17 p.m.\n\nSECURITY NOTES:\n• Laptop in Council Annex Office 2C — NO badge entry, NO camera coverage\n• Generic city credentials, basic 6-character password, NO biometric tracking\n• Multiple interns/assistants regularly used this device\n• External USB connected Jan 30, 2025 — device NOT recovered\n• All searches performed in Chrome guest tab (no user login active)" },
+    { id:"ex7",  num:"7",  name:"Bank Wire Transfer Records",         desc:"$10,000 to Haven Consulting LLC, Jan 27, home IP + 2FA.",
+      content:"BANK RECORDS — Lone Star Federal Credit Union\nAccount Holder: Harper Lynn · Account: XXXX-XX9284\n\nTRANSACTION — January 27, 2025:\nTime: 8:13 p.m. CST\nType: Wire Transfer\nAmount: $10,000.00\nRecipient: Haven Consulting, LLC (Nevada-based regional credit union)\nMemo: 'Service Payment'\nMethod: Online / Home WiFi\n\nLOGIN SESSION DETAILS:\n• IP: 192.168.1.22 (Lynn's registered home network, Willow Bend)\n• Device ID: HLPC-8135 (Lynn's registered personal laptop)\n• Two-Factor Auth: USED (SMS code to Lynn's verified phone number)\n• Transfer Status: Completed — NOT reversed\n\nFRAUD INVESTIGATION STATUS: Open — No conclusive finding of unauthorized access as of 2/10/25\n• No foreign IPs, spoofing activity, or credential resets detected prior to transfer\n• Fraud report filed by Lynn: Feb 2, 2025 at 10:31 p.m. (6 days after transfer)\n\nNOTE: Haven Consulting, LLC does NOT appear in Texas state registration databases." },
+    { id:"ex8",  num:"8",  name:"Police Evidence Log",               desc:"Chain of custody for all key physical evidence.",
+      content:"POLICE EVIDENCE LOG — RCPD Case RCPD-INV-3258\nPrimary Investigator: Det. Jordan Reaves\n\nITEM 001: Burner phone (black flip, no markings) — found in storm drain 2 blocks from Maddox home. IMEI/SIM documented. Digital forensics.\nITEM 002: City laptop (Dell RWC-LTP-0411) — voluntarily surrendered by Harper Lynn Feb 5.\nITEM 003: Security footage USB (neighbor's door cam) — footage auto-deleted before Det. Reaves could preserve it.\nITEM 004: Banking records (Lone Star FCU) — via subpoena.\nITEM 005: GreenPro All-Season Fertilizer, 40-lb opened bag — found in Lynn's garage Feb 6. Sealed as potential precursor material.\nITEM 006: Social media post printout — X/@KodyM thread archived by IT.\nITEM 007: Anonymous tip email — forwarded by Redwood Record editor.\nITEM 008: AirTag (Apple serial #G22L3RM4Q1) — found in undercarriage of Maddox's Toyota Camry. Registered to Albany, NY resident. No user match returned from lab." },
+    { id:"ex9",  num:"9",  name:"Fire Marshal Incident Report",      desc:"IED: ammonium nitrate + aluminum powder, ignition-triggered.",
+      content:"FIRE MARSHAL'S INCIDENT REPORT\nReport No. RMX-0252-EXP · Date: Feb 3, 2025 · By: Marshal Teresa D. Boone\n\nVEHICLE: 2018 Toyota Camry, gray, TX plate RCH-2749 (Dakota Maddox)\nLOCATION: 114 Cedar Gate Drive\n\nCAUSE & ORIGIN:\n• Point of Origin: Front lower passenger side, near undercarriage close to ignition harness\n• Type: Improvised explosive device (IED), rudimentary construction\n• Trigger: Ignition-activated — circuit completed when vehicle started\n\nCOMPONENTS IDENTIFIED:\n• Black powder residue\n• Aluminum powder traces\n• Crystalline nitrate compound (consistent with ammonium nitrate fertilizer)\n• Wiring fragments (12V battery ignition assist)\n• Electrical tape + partial timing relay (melted)\n\nLAB FINDINGS: Amateur-grade explosive device. NO military or commercial explosive residue. Lawn fertilizer is a POTENTIAL (not confirmed) source for nitrate base.\n\nCONCLUSION: Deliberately placed ignition-triggered device. Materials commercially obtainable. Device intended to kill driver upon startup." },
+    { id:"ex10", num:"10", name:"Library Computer Access Log",        desc:"Lynn's credentials at 3:58 p.m.; anonymous guest at 5:06 p.m.",
+      content:"PUBLIC LIBRARY COMPUTER ACCESS LOG\nInstitution: Redwood Crossing Public Library — Station #4, 2nd Floor\nDate: January 26, 2025\nPrepared: Lionel Denson, IT Administrator\n\nACTIVITY LOG:\n3:58 p.m. — User: harperlynn.council@city.gov · Duration: 42 min · IP: 10.0.4.112\n  Notes: Logged in via city email. Accessed local ordinance files and PDF reader.\n\n5:06 p.m. — User: Anonymous (Guest Mode) · Duration: 26 min · IP: 10.0.4.112\n  Notes: No credentials. Session cleared at logout.\n\nIMPORTANT: Public terminals wipe session history after logout.\nNo surveillance footage available for this date.\nAnonymous ethics tip to Redwood Record was sent from IP 10.0.4.112 at 4:18 p.m. — WHILE Lynn was still logged in at this terminal." },
+    { id:"ex11", num:"11", name:"Photo of Kody Maddox",              desc:"Victim identification — councilmember photo.",
+      content:"EXHIBIT 11: Photograph of Councilmember Dakota 'Kody' Maddox\n\nDescription: Professional photo of victim. Male, approximately 31 years old, appearing in business attire with capitol building in background. Used for victim identification purposes.\n\nStipulation: All parties agree Exhibit 11 is a picture of Kody Maddox (Case-Specific Rule 10)." },
+    { id:"ex12", num:"12", name:"Vehicle Explosion Photo",           desc:"Scene photo of destroyed Toyota Camry.",
+      content:"EXHIBIT 12: Photograph of Vehicle Explosion Scene\n\nDescription: Morning photo taken by Det. Reaves after sunrise (after scene was cleared by fire department and bomb squad). Shows destroyed 2018 Toyota Camry, gray, in driveway. Vehicle is total loss with blast damage consistent with undercarriage IED. Ash pattern consistent with undercarriage blast vector. Yellow crime scene tape visible in background.\n\nPhoto taken by: Det. Jordan Reaves, approximately 6:30 a.m. February 3, 2025." },
+    { id:"ex13", num:"13", name:"Gigi's Neighborhood Safety Log",   desc:"Truck 2:30 a.m., sedan 2:31 a.m., EXPLOSION 2:35 a.m.",
+      content:"EXHIBIT 13: Gloria 'Gigi' Parker's Handwritten Neighborhood Safety Log\n\nFebruary 1, 2025 – 12:47 p.m.:\n'Dark Gray Truck (Loud!) Southbound. Very loud truck. Criminal looking guy driving alone. Drove slow by Maddox house then sped off.'\n\nFebruary 3, 2025 – 2:30 a.m.:\n'Same Dark Gray Truck — Southbound. Stopped at Maddox house then sped off. Strange. Didn't see driver clearly.'\n\nFebruary 3, 2025 – 2:31 a.m.:\n'Silver Sedan, Honda? Northbound. Probably a new neighbor. Small female. Driving too fast.'\n\nFebruary 3, 2025 – 2:35 a.m.:\n'EXPLOSION!!! Might want to move houses now.'\n\nNOTE: Gloria Parker also described seeing a TALL figure (~6 feet, broad shoulders, limping on LEFT leg) walking toward Maddox's driveway shortly before the explosion. This description does NOT match Harper Lynn (5'4\") or Victor Sloane (~5'6\")." }
+  ],
+  verdictFactors:"reliability of digital evidence given unsecured devices and expert testimony, bank transfer fraud claim vs. prosecution use, Victor Sloane mystery and whereabouts, Gigi Parker's tall-limping-figure description vs. Lynn's height (5'4\"), circumstantial-only prosecution case with no fingerprints and no eyewitness placing Lynn at scene"
+};
+
+// ═══════════ TTS ═══════════
+let voices=[], ttsRate=1.0;
+window.speechSynthesis.onvoiceschanged=()=>{voices=window.speechSynthesis.getVoices()};
+setTimeout(()=>{voices=window.speechSynthesis.getVoices()},600);
+const VPROF={
+  judge:{pitch:.82,hints:['Daniel','Google UK English Male','en-GB']},
+  prosecution:{pitch:1.04,hints:['Samantha','Google US English','en-US']},
+  defense:{pitch:.90,hints:['Alex','en-US']},
+  witness0p:{pitch:1.0,hints:['Karen','en-AU']},
+  witness1p:{pitch:1.12,hints:['Moira','en-IE']},
+  witness2p:{pitch:.88,hints:['Rishi','en-IN']},
+  witness0d:{pitch:1.08,hints:['Tessa','en-ZA']},
+  witness1d:{pitch:.85,hints:['Fred','en-US']},
+  witness2d:{pitch:1.15,hints:['Fiona','en-GB']}
+};
+function updateTTSLabel(){ttsRate=parseFloat(document.getElementById('tts-speed').value);document.getElementById('tts-label').textContent=ttsRate.toFixed(1)+'×';}
+function getVoice(hints){if(!voices.length)voices=window.speechSynthesis.getVoices();for(const h of hints){const v=voices.find(v=>v.name.includes(h)||v.lang.startsWith(h));if(v)return v;}return voices.find(v=>v.lang.startsWith('en'))||voices[0]||null;}
+function speak(text,profileKey,onEnd){
+  window.speechSynthesis.cancel();
+  const prof=VPROF[profileKey]||VPROF.judge;
+  const utt=new SpeechSynthesisUtterance(text.substring(0,700));
+  utt.voice=getVoice(prof.hints);utt.pitch=prof.pitch;utt.rate=ttsRate;utt.volume=1;utt.onend=onEnd||null;
+  window.speechSynthesis.speak(utt);
+}
+
+// ═══════════ STATE ═══════════
+const PHASES=['pretrial','opening','direct1','cross1','direct2','cross2','direct3','cross3','closing','verdict'];
+const PT_IDS=['pt-pretrial','pt-opening','pt-direct1','pt-cross1','pt-direct2','pt-cross2','pt-direct3','pt-cross3','pt-closing','pt-verdict'];
+const PHASE_GUIDES={
+  pretrial:'Pre-trial motions and stipulation questions. Raise any pretrial issues — stipulations, witness order, evidence questions. Click "Pre-Trial" button to open.',
+  opening:'2 min max. "May it please the court…" Tell the court what you will prove. Preview your 3 witnesses. NO objections permitted.',
+  direct1:'Direct exam — Witness #1. Open questions only. No leading! "Tell the court…", "Describe…", "What did you observe…" Your 18 min is shared across all 3 directs.',
+  cross1:'Cross #1 — Opponent\'s witness. Leading questions ONLY. "Isn\'t it true that…" Attack bias, contradiction, credibility. 15 min total for all crosses.',
+  direct2:'Direct #2 — Your second witness. Lay expert foundation if needed: knowledge, skill, experience, training, education.',
+  cross2:'Cross #2. Challenge methodology if expert. Use prior inconsistencies. Point out what they don\'t know.',
+  direct3:'Direct #3 — Your third witness. Close out your case theory strong.',
+  cross3:'Cross #3. Use Gigi\'s log details, witness biases, what they couldn\'t see. Save time for a sharp close.',
+  closing:'3 min max. Summarize the trial — what was actually proven. Prosecution may reserve 1 min for rebuttal. NO objections.',
+  verdict:'Judge deliberates — 4 min max.'
+};
+
+let S={role:'prosecution',diff:'competitive',ollamaModel:'llama3',phase:'pretrial',currentWitnessKey:null,history:[],loading:false,evidenceState:{},pretrialHistory:[]};
+
+// ═══════════ SETUP ═══════════
+function sel(el){document.querySelectorAll(`[data-g="${el.dataset.g}"]`).forEach(e=>e.classList.remove('sel'));el.classList.add('sel');}
+function getv(g){return document.querySelector(`[data-g="${g}"].sel`)?.dataset.v;}
+async function startTrial(){
+  S.role=getv('role');S.diff=getv('diff');S.ollamaModel=document.getElementById('ollama-model-input').value.trim()||'llama3';
+  CASE.evidence.forEach(e=>{S.evidenceState[e.id]='pending';});
+  document.getElementById('setup-screen').style.display='none';
+  buildCharList();buildEvidenceList();buildQuickObj();updatePhaseUI();enableButtons();
+  await checkOllama();
+  await beginTrial();
+}
+async function checkOllama(){
+  const st=document.getElementById('ollama-status');
+  try{const r=await fetch('http://localhost:11434/api/tags',{signal:AbortSignal.timeout(3000)});if(r.ok){st.className='connected';st.innerHTML='<span class="dot"></span> Ollama Connected';return true;}}catch(e){}
+  st.className='error';st.innerHTML='<span class="dot"></span> Ollama Offline — run `ollama serve`';return false;
+}
+
+// ═══════════ CHARACTERS ═══════════
+function buildCharList(){
+  const aiRole=S.role==='prosecution'?'defense':'prosecution';
+  const chars=[
+    {id:'judge',name:'Judge',role:'Presiding Judge',color:'#b07de0',emoji:'👨‍⚖️',vk:'judge'},
+    {id:'youatty',name:`You (${S.role.charAt(0).toUpperCase()+S.role.slice(1)})`,role:`${S.role} attorney`,color:'#d4a843',emoji:'🎤',vk:S.role},
+    {id:'aiatty',name:`${aiRole.charAt(0).toUpperCase()+aiRole.slice(1)} Atty`,role:`${aiRole} attorney`,color:aiRole==='prosecution'?'#e05a3a':'#4a8fd4',emoji:'⚖️',vk:aiRole},
+    ...CASE.witnesses.prosecution.map((w,i)=>({id:`wp${i}`,name:w.name,role:'Prosecution Witness',color:'#4ab870',emoji:'💼',vk:w.voiceKey})),
+    ...CASE.witnesses.defense.map((w,i)=>({id:`wd${i}`,name:w.name,role:'Defense Witness',color:'#4ab870',emoji:'🏛️',vk:w.voiceKey}))
+  ];
+  window._chars=chars;
+  document.getElementById('char-list').innerHTML=chars.map(c=>`
+    <div class="char-card" id="cc-${c.id}">
+      <div class="char-avatar" style="border-color:${c.color}33">${c.emoji}</div>
+      <div class="char-info"><div class="char-name" style="color:${c.color}">${c.name}</div><div class="char-role">${c.role}</div></div>
+      <div class="char-voice-bar"><div class="vbar"></div><div class="vbar"></div><div class="vbar"></div><div class="vbar"></div></div>
+    </div>`).join('');
+}
+function setSpeaking(charId){document.querySelectorAll('.char-card').forEach(c=>c.classList.remove('speaking'));if(charId)document.getElementById('cc-'+charId)?.classList.add('speaking');highlightCourtroom(charId);}
+function highlightCourtroom(charId){
+  const gold='#d4a843';
+  ['svg-judge','svg-prosecution','svg-defense','svg-witness','svg-podium'].forEach(id=>{const el=document.getElementById(id);if(el){el.setAttribute('stroke','#2a2a34');el.setAttribute('fill','#1e1e24');}});
+  if(!charId)return;
+  if(charId==='judge')document.getElementById('svg-judge')?.setAttribute('stroke',gold);
+  else if(charId==='youatty'||charId==='aiatty'){const b=(charId==='youatty'&&S.role==='prosecution')||(charId==='aiatty'&&S.role==='defense')?'svg-prosecution':'svg-defense';document.getElementById(b)?.setAttribute('stroke',gold);document.getElementById('svg-podium')?.setAttribute('stroke',gold);}
+  else if(charId.startsWith('w')){document.getElementById('svg-witness')?.setAttribute('stroke',gold);}
+}
+
+// ═══════════ EVIDENCE LIST ═══════════
+function buildEvidenceList(){
+  document.getElementById('evidence-list').innerHTML=CASE.evidence.map(e=>`
+    <div class="evidence-item pending" id="ev-${e.id}" onclick="showExhibit('${e.id}')">
+      <div class="ev-name">Ex. ${e.num}: ${e.name}</div>
+      <div style="font-size:9px;color:var(--text-muted);margin-bottom:1px">${e.desc}</div>
+      <div class="ev-status">Pending</div>
+    </div>`).join('');
+}
+function updateEvidence(evId,status){
+  S.evidenceState[evId]=status;
+  const el=document.getElementById('ev-'+evId);
+  if(!el)return;
+  el.className='evidence-item '+status;
+  el.querySelector('.ev-status').textContent=status.charAt(0).toUpperCase()+status.slice(1);
+}
+function showExhibit(evId){
+  const e=CASE.evidence.find(x=>x.id===evId);
+  if(!e)return;
+  openModal('exhibits',evId);
+}
+function addObjLog(ruling,reason){
+  const ol=document.getElementById('obj-log');
+  const cls=/sustain/i.test(ruling)?'sustained':'overruled';
+  const div=document.createElement('div');
+  div.className='obj-item '+cls;
+  div.innerHTML=`<div class="obj-ruling">${ruling}</div><div style="color:var(--text-dim);font-size:10px">${reason.substring(0,90)}</div>`;
+  ol.appendChild(div);
+}
+
+// ═══════════ MODAL ═══════════
+let currentTab='witnesses';
+function openModal(section,evId){
+  document.getElementById('modal-overlay').classList.add('open');
+  switchTab(section==='rules'?'rules':section==='exhibits'?'exhibits':'witnesses',evId);
+}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('open');}
+function switchTab(tab,evId){
+  currentTab=tab;
+  document.querySelectorAll('.modal-tab').forEach((t,i)=>{
+    const tabs=['witnesses','exhibits','charges','rules','objections'];
+    t.classList.toggle('active',tabs[i]===tab);
+  });
+  const body=document.getElementById('modal-body');
+  if(tab==='witnesses')renderWitnessesTab(body);
+  else if(tab==='exhibits')renderExhibitsTab(body,evId);
+  else if(tab==='charges')renderChargesTab(body);
+  else if(tab==='rules')renderRulesTab(body);
+  else if(tab==='objections')renderObjectionsTab(body);
+}
+function renderWitnessesTab(body){
+  body.innerHTML=`<h3>Prosecution Witnesses</h3>${CASE.witnesses.prosecution.map(w=>`<div class="ex-block"><div class="ex-title">${w.name} — ${w.role}</div><div class="ex-content">${w.bio}</div></div>`).join('')}<h3>Defense Witnesses</h3>${CASE.witnesses.defense.map(w=>`<div class="ex-block"><div class="ex-title">${w.name} — ${w.role}</div><div class="ex-content">${w.bio}</div></div>`).join('')}`;
+}
+function renderExhibitsTab(body,focusId){
+  body.innerHTML=CASE.evidence.map(e=>`<div class="ex-block" id="modal-ex-${e.id}"><div class="ex-title">Exhibit ${e.num}: ${e.name} <span style="font-size:10px;font-weight:400;color:var(--text-muted)">— ${e.desc}</span></div><div class="ex-content" style="color:var(--text-dim)">${e.content}</div></div>`).join('');
+  if(focusId){const el=document.getElementById('modal-ex-'+focusId);if(el)setTimeout(()=>el.scrollIntoView({behavior:'smooth'}),50);}
+}
+function renderChargesTab(body){
+  body.innerHTML=`<h3>Indictment — Cause No. 25-123456</h3>
+<h4>Count 1: Murder (Tex. Penal Code §19.02)</h4>
+<p>Harper Lynn did intentionally and knowingly cause the death of Dakota "Kody" Maddox by arranging for and/or soliciting the use of an explosive device, with the intent that said device result in the death of the victim.</p>
+<h4>Count 2: Criminal Conspiracy (§15.02)</h4>
+<p>Lynn agreed with one or more persons (identity unknown) to commit the felony offense of murder, and with the intent that the offense be committed, performed an overt act in furtherance — to wit: communicating through an unregistered cellular device and conducting searches intended to evade detection.</p>
+<h4>Count 3: Criminal Solicitation (§15.03)</h4>
+<p>Lynn, with intent that the offense of murder be committed, requested, commanded, or attempted to induce a person or persons to engage in conduct constituting murder.</p>
+<h3>Burden of Proof</h3>
+<p><strong>Beyond a Reasonable Doubt</strong> (CCP 2.01): "A doubt based on reason and common sense after careful and impartial consideration of all the evidence. The kind of doubt that would make a reasonable person hesitate to act in the most important of his or her own affairs."</p>
+<h3>Key Definitions (§6.03)</h3>
+<p><strong>Intentionally:</strong> Conscious objective or desire to cause the result.<br><strong>Knowingly:</strong> Aware that conduct is reasonably certain to cause the result.</p>`;
+}
+function renderRulesTab(body){
+  body.innerHTML=`<h3>Trial Timeline (90 min max)</h3>
+<ul><li><strong>Opening Statements:</strong> 2 min each. Prosecution goes first.</li><li><strong>Direct Examination:</strong> 18 min per team (shared across 3 witnesses)</li><li><strong>Cross Examination:</strong> 15 min per team (must cross all 3 opposing witnesses)</li><li><strong>Minimum per witness:</strong> 30 seconds direct or cross</li><li><strong>Closing Arguments:</strong> 3 min each. Prosecution may reserve up to 1 min for rebuttal.</li><li><strong>Free Minutes:</strong> 2.5 min per team (for time lost to objections) — notify bailiff at start</li><li><strong>Verdict:</strong> 4 min max for judge deliberation + ruling</li></ul>
+<h3>Attorney Rules</h3>
+<ul><li>Each attorney must do either the entire opening OR the entire closing</li><li>Each attorney must do at least one direct and at least one cross</li><li>The attorney who does the direct on a witness must handle all objections and do the cross for that witness</li><li>No objections during opening statements or closing arguments</li><li>May use notes — but heavy reliance lowers score</li></ul>
+<h3>Witness Rules</h3>
+<ul><li>Each team must call exactly 3 witnesses</li><li>Witnesses bound by their own affidavit only — not bound by other witnesses' statements</li><li>No notes on stand (except to reference affidavit or exhibit)</li><li>Reasonable inferences from affidavit permitted — no fabrication</li><li>Expert witnesses must be qualified before giving expert opinions</li></ul>
+<h3>Exhibits</h3>
+<ul><li>Only official case exhibits may be introduced (Exhibits 1–13)</li><li>Must authenticate before offering: "Your Honor, may I approach? I'm showing you what's been pre-marked as State's Exhibit 1. Do you recognize it? What is it?"</li><li>Offer to judge: "Your Honor, the State offers Exhibit 1 into evidence."</li><li>Never enter evidence without using it</li><li>Enlargements permitted up to 23"×29" (black & white only)</li></ul>
+<h3>Courtroom Decorum</h3>
+<ul><li>Always stand when addressing the judge or when the judge addresses you</li><li>Address judge as "Your Honor" or "the Court" — never by name</li><li>Direct all remarks to the judge, jury, or witness — never to opposing counsel</li><li>Remain seated at counsel table while questioning (unless judge permits approach)</li></ul>`;
+}
+function renderObjectionsTab(body){
+  body.innerHTML=`<h3>Common Objections</h3>
+<h4>Leading (Rule 611)</h4><p>A question that suggests the desired answer. Only allowed on cross, never on direct. "Isn't it true that…" = leading. Objection: <em>"Objection, leading."</em></p>
+<h4>Hearsay (Rules 801–802)</h4><p>Out-of-court statement offered to prove the truth of the matter asserted. Objection: <em>"Objection, hearsay."</em> Exceptions include: opposing party's statement (801(e)(2)), excited utterance (803(2)), business records (803(6)), present sense impression (803(1)).</p>
+<h4>Lack of Personal Knowledge (Rule 602)</h4><p>Witness testifying to something they didn't personally observe. Objection: <em>"Objection, lack of personal knowledge."</em></p>
+<h4>Relevance (Rules 401–402)</h4><p>Evidence that doesn't make a fact of consequence more or less probable. Objection: <em>"Objection, relevance."</em></p>
+<h4>Speculation / Opinion (Rule 701)</h4><p>Non-expert offering opinion beyond their perception. Objection: <em>"Objection, calls for speculation."</em></p>
+<h4>Improper Expert Opinion (Rule 702)</h4><p>Expert testifying outside their qualified field. Objection: <em>"Objection, outside the scope of this witness's expertise."</em></p>
+<h4>Narrative (Rule 611)</h4><p>Question too broad, lets witness ramble. Objection: <em>"Objection, calls for a narrative."</em></p>
+<h4>Asked and Answered (Rule 611)</h4><p>Question already asked and answered. Objection: <em>"Objection, asked and answered."</em></p>
+<h4>Compound Question (Rule 611)</h4><p>Question contains two separate questions. Objection: <em>"Objection, compound."</em></p>
+<h4>Assumes Facts Not in Evidence (Rule 611)</h4><p>Question contains unproven factual assertions. Objection: <em>"Objection, assumes facts not in evidence."</em></p>
+<h4>Character Evidence (Rule 404)</h4><p>Evidence of character used to prove conforming conduct. Objection: <em>"Objection, improper character evidence."</em></p>
+<h4>Responding to an Objection</h4><p>State a legal basis — don't just say "no it's fine." Example: <em>"Your Honor, the statement is not offered for the truth of the matter asserted, but to show the defendant's state of mind."</em> or <em>"Your Honor, this question goes to the witness's bias under Rule 613."</em></p>`;
+}
+
+// ═══════════ PRETRIAL ═══════════
+function openPretrial(){document.getElementById('pretrial-overlay').classList.add('open');if(S.pretrialHistory.length===0)initPretrial();}
+function closePretrial(){document.getElementById('pretrial-overlay').classList.remove('open');}
+async function initPretrial(){
+  const pt=document.getElementById('pretrial-transcript');
+  pt.innerHTML='';
+  addPretrialEntry('judge','JUDGE','Pre-trial conference is now in session. Cause No. 25-123456, State of Texas v. Harper Lynn. Both sides should identify themselves and raise any pre-trial matters — stipulations, witness order preferences, evidence questions, or any motions before we begin the trial. Counsel, you may proceed.');
+  speak('Pre-trial conference is now in session. Both sides may raise any pre-trial matters.','judge');
+}
+function addPretrialEntry(cssRole,label,text){
+  const t=document.getElementById('pretrial-transcript');
+  const div=document.createElement('div');div.className='pt-entry';
+  div.innerHTML=`<div class="pt-sp ${cssRole}">${label}</div><div class="pt-tx ${cssRole}">${text}</div>`;
+  t.appendChild(div);t.scrollTop=t.scrollHeight;
+}
+async function sendPretrialMsg(){
+  const inp=document.getElementById('pretrial-input');
+  const text=inp.value.trim();if(!text)return;
+  inp.value='';
+  addPretrialEntry('you',`${S.role.toUpperCase()} ATTORNEY (YOU)`,text);
+  speak(text,S.role);
+  document.getElementById('pretrial-send').disabled=true;
+  const aiRole=S.role==='prosecution'?'defense':'prosecution';
+  const sys=`You are running the pre-trial conference for ${CASE.title}. User is ${S.role.toUpperCase()} attorney. You play ${aiRole.toUpperCase()} attorney AND the JUDGE. Handle pretrial motions, stipulation discussions, and procedural questions realistically. The 10 case stipulations are: (1) Cypress County has jurisdiction. (2) All exhibits are authentic. (3) Kody Maddox died ~2:41 a.m. Feb 3, 2025 from car explosion — not disputed. (4) First 911 call at 2:42 a.m. (5) Evidence chain of custody not in dispute. (6) Affidavits made under oath. (7) Victor Sloane not charged. (8) Digital forensic terms (spoofing, IMEI, etc.) are legitimate concepts. (9) Fertilizer is commercially available ammonium nitrate — NOT confirmed as used in device. (10) All witnesses may acknowledge Exhibit 11 is a picture of Kody Maddox. Start responses with [JUDGE] or [${aiRole.toUpperCase()} ATTORNEY].`;
+  S.pretrialHistory.push({role:'user',content:text});
+  try{
+    const resp=await fetch('http://localhost:11434/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:S.ollamaModel,stream:false,messages:[{role:'system',content:sys},...S.pretrialHistory]})});
+    const data=await resp.json();
+    const answer=data.message?.content||'[No response]';
+    S.pretrialHistory.push({role:'assistant',content:answer});
+    const clean=answer.replace(/^\[[^\]]+\]\s*/i,'').trim();
+    const isJudge=/^\[JUDGE\]/i.test(answer.trim());
+    addPretrialEntry(isJudge?'judge':'opp',isJudge?'JUDGE':`${aiRole.toUpperCase()} ATTORNEY`,clean);
+    speak(clean,isJudge?'judge':aiRole);
+  }catch(e){addPretrialEntry('judge','SYSTEM','⚠ Ollama error.');}
+  document.getElementById('pretrial-send').disabled=false;
+}
+document.addEventListener('keydown',e=>{if(e.target.id==='pretrial-input'&&e.key==='Enter'){e.preventDefault();sendPretrialMsg();}});
+
+// ═══════════ PHASE UI ═══════════
+function updatePhaseUI(){
+  const idx=PHASES.indexOf(S.phase);
+  PT_IDS.forEach((pid,i)=>{const el=document.getElementById(pid);el.className='pt-step';if(i<idx)el.classList.add('done');else if(i===idx)el.classList.add('active');});
+  document.getElementById('phase-guide').textContent=PHASE_GUIDES[S.phase]||'';
+  const myW=CASE.witnesses[S.role];
+  const theirW=CASE.witnesses[S.role==='prosecution'?'defense':'prosecution'];
+  const wMap={direct1:{w:myW[0],charId:S.role==='prosecution'?'wp0':'wd0'},cross1:{w:theirW[0],charId:S.role==='prosecution'?'wd0':'wp0'},direct2:{w:myW[1],charId:S.role==='prosecution'?'wp1':'wd1'},cross2:{w:theirW[1],charId:S.role==='prosecution'?'wd1':'wp1'},direct3:{w:myW[2],charId:S.role==='prosecution'?'wp2':'wd2'},cross3:{w:theirW[2],charId:S.role==='prosecution'?'wd2':'wp2'}};
+  if(wMap[S.phase]){S.currentWitnessKey=wMap[S.phase].charId;document.getElementById('svg-witness-label').textContent=wMap[S.phase].w.name.split(' ')[0].toUpperCase();}
+  else{S.currentWitnessKey=null;document.getElementById('svg-witness-label').textContent='WITNESS';}
+  const nb=document.getElementById('btn-next');
+  if(nb){if(S.phase==='closing')nb.textContent='🔨 Get Verdict & Evaluation';else if(S.phase==='verdict')nb.textContent='Trial Complete';else nb.textContent='Next Phase →';}
+  // Quick-objection chips only make sense during examination phases
+  const examPhase=/^(direct|cross)/.test(S.phase);
+  document.querySelectorAll('.qobj-chip').forEach(c=>c.disabled=!examPhase);
+}
+function enableButtons(){['btn-obj','btn-next','btn-coach','btn-mic','btn-rules','btn-pretrial','send-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});}
+function setButtons(d){['btn-obj','btn-next','btn-coach','btn-mic','btn-rules','btn-pretrial','send-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=d;});}
+
+// ═══════════ TRANSCRIPT ═══════════
+function addEntry(label,cssRole,text){
+  const t=document.getElementById('transcript');
+  const div=document.createElement('div');div.className='t-entry';
+  div.innerHTML=`<div class="t-speaker ${cssRole}">${label}</div><div class="t-text ${cssRole}">${text}</div>`;
+  t.appendChild(div);t.scrollTop=t.scrollHeight;
+}
+let typingEl=null;
+function showTyping(){hideTyping();const t=document.getElementById('transcript');typingEl=document.createElement('div');typingEl.className='t-entry';typingEl.innerHTML=`<div class="t-speaker system">…</div><div class="typing-dots"><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></div>`;t.appendChild(typingEl);t.scrollTop=t.scrollHeight;}
+function hideTyping(){typingEl?.remove();typingEl=null;}
+
+// OLLAMA
+function buildSystem(){
+  const aiRole=S.role==='prosecution'?'defense':'prosecution';
+  const curW=getCurrentWitness();
+  return `You are running a YMCA Texas Y&G Mock Trial. Case: ${CASE.title} (${CASE.caseNo}).
+CHARGES: ${CASE.charges}
+FACTS: ${CASE.facts.join(' | ')}
+PROSECUTION WITNESSES: ${CASE.witnesses.prosecution.map(w=>w.name+' ('+w.role+'): '+w.bio).join(' || ')}
+DEFENSE WITNESSES: ${CASE.witnesses.defense.map(w=>w.name+' ('+w.role+'): '+w.bio).join(' || ')}
+EXHIBITS: (1)Medical Examiner (2)Council Transcript-outburst (3)X deleted post-86KM (4)MetroOne cell tower-1.8mi radius (5)Redwood Record tip (6)IT laptop-deleted searches (7)Bank wire-$10k Haven Consulting (8)Police evidence log (9)Fire Marshal-IED report (10)Library computer log (11)Maddox photo (12)Explosion photo (13)Gigi log-truck+sedan+explosion
+USER: ${S.role.toUpperCase()} ATTORNEY | YOU PLAY: ${aiRole.toUpperCase()} ATTORNEY + ALL WITNESSES + JUDGE
+CURRENT PHASE: ${S.phase}${curW ? ' | WITNESS ON STAND: '+curW.name+' - '+curW.bio : ''}
+DIFFICULTY: ${S.diff==='competitive' ? 'Competitive Y&G: object to leading on direct (Rule 611), hearsay (802), lack of personal knowledge (602), speculation (701), improper expert (702), relevance (402), asked-and-answered (611). Sharp cross. Challenge credibility.' : 'Beginner: relaxed on objections, occasional errors.'}
+VERDICT FACTORS: ${CASE.verdictFactors}
+FORMAT: Start every response with [JUDGE], [WITNESS: Name], [${aiRole.toUpperCase()} ATTORNEY], or [COACHING] (only if user asks).
+RULES: Stay in character. Witnesses answer only what asked - 2-4 sentences. Experts must be qualified. Judge rules on objections with 1-sentence reason. Acknowledge exhibit admissions. Openings/closings: 2-3 paragraphs.`;
+}
+function getCurrentWitness(){if(!S.currentWitnessKey)return null;const side=S.currentWitnessKey.includes('p')?'prosecution':'defense';const idx=parseInt(S.currentWitnessKey.charAt(1));return CASE.witnesses[side][idx];}
+async function callOllama(userMsg){
+  const messages=[...S.history,{role:'user',content:userMsg}];
+  const resp=await fetch('http://localhost:11434/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:S.ollamaModel,stream:false,messages:[{role:'system',content:buildSystem()},...messages]})});
+  if(!resp.ok)throw new Error('Ollama '+resp.status);
+  const data=await resp.json();
+  return data.message?.content||'[No response]';
+}
+function parseAndDisplay(text){
+  hideTyping();
+  const clean=text.replace(/^\[[^\]]+\]\s*/i,'').trim();
+  const judgeMatch=/^\[JUDGE\]/i.test(text.trim());
+  const witnessMatch=text.trim().match(/^\[WITNESS:\s*([^\]]+)\]/i);
+  const attyMatch=text.trim().match(/^\[(PROSECUTION|DEFENSE)\s*ATTORNEY\]/i);
+  const coachMatch=/^\[COACHING\]/i.test(text.trim());
+  CASE.evidence.forEach(e=>{
+    const rx=new RegExp(e.name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i');
+    if(rx.test(clean)){if(/admitted|received|entered/i.test(clean))updateEvidence(e.id,'admitted');else if(/excluded|sustained.*exhibit|not admitted/i.test(clean))updateEvidence(e.id,'excluded');}
+    if(new RegExp('[Ee]xhibit\\s+'+e.num+'\\b').test(clean)){if(/admitted|received|entered/i.test(clean))updateEvidence(e.id,'admitted');else if(/excluded|sustained/i.test(clean))updateEvidence(e.id,'excluded');}
+  });
+  if(judgeMatch&&/sustained|overruled/i.test(clean))addObjLog(/sustained/i.test(clean)?'Sustained':'Overruled',clean.split('.')[0]);
+  if(coachMatch){const cb=document.getElementById('coaching-box');cb.style.display='block';cb.innerHTML='<strong>\u{1F4A1} Coaching:</strong> '+clean;setSpeaking(null);return;}
+  if(judgeMatch){addEntry('JUDGE','judge',clean);setSpeaking('judge');speak(clean,'judge',()=>setSpeaking(null));return;}
+  if(witnessMatch){const charId=S.currentWitnessKey||'wp0';const w=getCurrentWitness();addEntry('WITNESS: '+witnessMatch[1].trim(),'witness',clean);setSpeaking(charId);speak(clean,w?.voiceKey||'witness0p',()=>setSpeaking(null));return;}
+  if(attyMatch){const side=attyMatch[1].toLowerCase();addEntry(side.toUpperCase()+' ATTORNEY',side,clean);setSpeaking('aiatty');speak(clean,side,()=>setSpeaking(null));return;}
+  addEntry('COURT','judge',clean);setSpeaking('judge');speak(clean,'judge',()=>setSpeaking(null));
+}
+
+// TRIAL FLOW
+async function beginTrial(){
+  addEntry('COURT OFFICER','system','All rise. The Honorable Court is now in session. State v. Harper Lynn, Cause No. 25-123456. Be seated.');
+  const intro='The trial is beginning. As judge, call the session to order, state the case and all 3 charges (Murder 19.02, Criminal Conspiracy 15.02, Criminal Solicitation 15.03), swear in all witnesses, then invite the '+S.role+' to deliver their opening statement.';
+  showTyping();setSpeaking('judge');
+  try{const resp=await callOllama(intro);S.history.push({role:'user',content:intro});S.history.push({role:'assistant',content:resp});parseAndDisplay(resp);}
+  catch(e){hideTyping();addEntry('SYSTEM','system','\u26a0 Could not reach Ollama. Make sure ollama serve is running, then open from http://localhost:8080 (not file://).');document.getElementById('ollama-status').className='error';document.getElementById('ollama-status').innerHTML='<span class="dot"></span> Ollama Offline';}
+}
+async function sendMsg(){const inp=document.getElementById('user-input');const text=inp.value.trim();if(!text||S.loading)return;document.getElementById('coaching-box').style.display='none';inp.value='';inp.style.height='auto';processUserInput(text);}
+async function processUserInput(text){
+  if(S.loading)return;
+  setSpeaking('youatty');addEntry(S.role.toUpperCase()+' ATTORNEY (YOU)','you',text);speak(text,S.role,()=>setSpeaking(null));
+  S.history.push({role:'user',content:text});S.loading=true;setButtons(true);showTyping();
+  try{const resp=await callOllama(text);S.history.push({role:'assistant',content:resp});parseAndDisplay(resp);}
+  catch(e){hideTyping();addEntry('SYSTEM','system','\u26a0 Ollama error. Is it still running?');}
+  S.loading=false;setButtons(false);
+}
+async function sendObjection(){processUserInput('Objection!');}
+async function nextPhase(){
+  if(S.loading)return;
+  const idx=PHASES.indexOf(S.phase);if(idx>=PHASES.length-1)return;
+  S.phase=PHASES[idx+1];updatePhaseUI();
+  addEntry('COURT OFFICER','system','- '+S.phase.replace(/(\d)/,' #$1').toUpperCase()+' -');
+  if(S.phase==='verdict'){await renderVerdict();return;}
+  if(S.phase==='pretrial'){openPretrial();return;}
+  const curW=getCurrentWitness();
+  const transition='Phase is now: '+S.phase+'. '+(curW?'The witness up is '+curW.name+'.':'')+' As the judge, acknowledge the transition. Invite the '+S.role+' attorney to proceed.';
+  S.loading=true;setButtons(true);showTyping();setSpeaking('judge');
+  try{const resp=await callOllama(transition);S.history.push({role:'user',content:transition});S.history.push({role:'assistant',content:resp});parseAndDisplay(resp);}
+  catch(e){hideTyping();addEntry('SYSTEM','system','\u26a0 Ollama error.');}
+  S.loading=false;setButtons(false);
+}
+async function getCoaching(){
+  if(S.loading)return;document.getElementById('coaching-box').style.display='none';
+  S.loading=true;setButtons(true);showTyping();
+  try{const resp=await callOllama('[COACHING REQUEST] Step outside simulation. Give me specific coaching: what am I doing well, what strategic mistakes to fix, and what Y&G rules should I use right now? Be direct and specific about the case facts.');S.history.push({role:'user',content:'[COACHING]'});S.history.push({role:'assistant',content:resp});parseAndDisplay('[COACHING] '+resp.replace(/^\[[^\]]+\]\s*/i,''));}
+  catch(e){hideTyping();addEntry('SYSTEM','system','\u26a0 Ollama error.');}
+  S.loading=false;setButtons(false);
+}
+async function renderVerdict(){
+  S.loading=true;setButtons(true);showTyping();setSpeaking('judge');
+  try{
+    const resp=await callOllama('The trial has concluded. As the presiding judge and Y&G scoring official, deliver a COMPLETE EVALUATION of the entire argument with clear section headers and blank lines between sections:\n\nVERDICT — Rule on each of the 3 counts (Count 1 Murder 19.02, Count 2 Conspiracy 15.02, Count 3 Solicitation 15.03): Guilty or Not Guilty, each with 2-3 sentences of reasoning tied to what was actually argued in this trial and the beyond-a-reasonable-doubt standard.\n\nARGUMENT EVALUATION of the '+S.role.toUpperCase()+' attorney (the user) — score each category 1-10 with one specific sentence of justification referencing what they actually did: Opening Statement, Direct Examination, Cross-Examination, Use of Objections, Use of Evidence/Exhibits, Closing Argument.\n\nTOP STRENGTHS — three things the user did well.\n\nAREAS TO IMPROVE — three concrete, actionable suggestions.\n\nOVERALL — a letter grade (A through F) and a one-line summary of the performance.');
+    hideTyping();document.getElementById('verdict-body').textContent=resp.replace(/^\[[^\]]+\]\s*/i,'').trim();document.getElementById('verdict-overlay').style.display='flex';speak(resp.replace(/^\[[^\]]+\]\s*/i,''),'judge');
+  }catch(e){hideTyping();addEntry('SYSTEM','system','\u26a0 Ollama error during verdict.');}
+  S.loading=false;setButtons(false);
+}
+
+// ═══════════ QUICK OBJECTIONS ═══════════
+const QUICK_OBJ=[
+  {k:'Leading',say:'Objection, Your Honor — leading. Counsel is suggesting the answer to the witness.'},
+  {k:'Hearsay',say:'Objection, hearsay. That is an out-of-court statement offered for the truth of the matter asserted.'},
+  {k:'Speculation',say:'Objection, calls for speculation.'},
+  {k:'Relevance',say:'Objection, relevance under Rule 402.'},
+  {k:'No Pers. Knowledge',say:'Objection, lack of personal knowledge under Rule 602.'},
+  {k:'Narrative',say:'Objection, calls for a narrative.'},
+  {k:'Asked & Answered',say:'Objection, asked and answered.'},
+  {k:'Compound',say:'Objection, compound question.'},
+  {k:'Assumes Facts',say:'Objection, assumes facts not in evidence.'},
+  {k:'Improper Opinion',say:'Objection, improper opinion — the witness is not qualified to give that testimony under Rule 701/702.'},
+  {k:'Argumentative',say:'Objection, argumentative.'},
+  {k:'Foundation',say:'Objection, lack of foundation.'},
+  {k:'Character',say:'Objection, improper character evidence under Rule 404.'}
+];
+function buildQuickObj(){
+  const c=document.getElementById('quick-obj');if(!c)return;
+  c.innerHTML=QUICK_OBJ.map((o,i)=>`<button class="qobj-chip" title="${o.say}" onclick="fireQuickObj(${i})">${o.k}</button>`).join('');
+}
+function fireQuickObj(i){if(S.loading)return;document.getElementById('coaching-box').style.display='none';processUserInput(QUICK_OBJ[i].say);}
+
+// ═══════════ PUSH-TO-TALK (hold to talk) ═══════════
+let recognition=null,micActive=false,pttFinal='',pttShouldSend=false;
+function srSupported(){return ('webkitSpeechRecognition' in window)||('SpeechRecognition' in window);}
+function micUI(on){const b=document.getElementById('btn-mic');if(!b)return;if(on){b.classList.add('recording');b.textContent='🔴 Listening… release to send';}else{b.classList.remove('recording');b.textContent='🎤 Hold to Talk';}}
+function startPTT(){
+  if(micActive||S.loading)return;
+  if(!srSupported()){alert('Push-to-talk needs Chrome or Edge (Web Speech API).');return;}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  recognition=new SR();recognition.lang='en-US';recognition.interimResults=true;recognition.continuous=true;recognition.maxAlternatives=1;
+  const inp=document.getElementById('user-input');
+  pttFinal=inp.value.trim();pttShouldSend=true;
+  recognition.onstart=()=>{micActive=true;micUI(true);};
+  recognition.onresult=(e)=>{
+    let interim='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const r=e.results[i];
+      if(r.isFinal)pttFinal=(pttFinal+' '+r[0].transcript).trim();
+      else interim+=r[0].transcript;
+    }
+    inp.value=(pttFinal+' '+interim).trim();
+    inp.style.height='auto';inp.style.height=Math.min(inp.scrollHeight,100)+'px';
+  };
+  recognition.onerror=(ev)=>{if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){alert('Microphone blocked. Allow mic access for this page, then try again.');}pttShouldSend=false;};
+  recognition.onend=()=>{micActive=false;micUI(false);const v=document.getElementById('user-input').value.trim();if(v&&pttShouldSend)sendMsg();pttShouldSend=false;};
+  try{recognition.start();}catch(e){micActive=false;micUI(false);}
+}
+function stopPTT(){if(recognition&&micActive){try{recognition.stop();}catch(e){}}}
+(function bindMic(){
+  const b=document.getElementById('btn-mic');if(!b)return;
+  b.addEventListener('pointerdown',e=>{e.preventDefault();startPTT();});
+  b.addEventListener('pointerup',e=>{e.preventDefault();stopPTT();});
+  b.addEventListener('pointerleave',()=>{if(micActive)stopPTT();});
+  b.addEventListener('pointercancel',()=>{if(micActive)stopPTT();});
+  // Hold SPACE to talk when not typing in a text field
+  document.addEventListener('keydown',e=>{
+    if(e.code==='Space'&&!e.repeat){
+      const a=document.activeElement,tag=a&&a.tagName;
+      if(tag==='INPUT'||tag==='TEXTAREA')return;
+      if(b.disabled)return;
+      e.preventDefault();startPTT();
+    }
+  });
+  document.addEventListener('keyup',e=>{if(e.code==='Space'&&micActive){e.preventDefault();stopPTT();}});
+})();
+
+document.getElementById('user-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});
+document.getElementById('user-input').addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px';});
+// Warn if opened as a file:// URL (Ollama will be CORS-blocked by the browser)
+if(location.protocol==='file:'){const w=document.getElementById('env-warning');if(w)w.style.display='block';}
+</script>
+</body>
+</html>
