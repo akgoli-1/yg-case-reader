@@ -581,10 +581,28 @@ body{
 /* Tighter, calmer chips */
 .qobj-chip{padding:4px 8px;font-size:9.5px}
 #quick-obj{gap:4px}
-#quick-obj-section>div:last-child{display:none}
 #left-panel .panel-section,#right-panel .panel-section{padding:10px 12px}
 /* fewer hard lines: drop the courtroom svg box border-feel */
 #courtroom-svg-wrap{border-bottom:1px solid rgba(43,61,98,.32)}
+
+/* ═══════════ PROGRESSIVE DISCLOSURE — accordions + compact phase bar ═══════════ */
+.acc-head{cursor:pointer;display:flex;align-items:center;gap:6px;user-select:none;transition:color .12s;margin:-4px -6px 7px;padding:5px 6px;border-radius:7px}
+.acc-head:hover{color:var(--text);background:rgba(77,141,246,.07)}
+.acc-head:hover .acc-chev{color:var(--gold)}
+.acc-chev{margin-left:auto;font-size:11px;color:var(--text-dim);transition:transform .2s,color .12s;flex-shrink:0}
+.panel-section.collapsed .acc-chev,#courtroom-svg-wrap.collapsed .acc-chev{transform:rotate(-90deg)}
+.panel-section.collapsed .panel-body,#courtroom-svg-wrap.collapsed .panel-body{display:none}
+.panel-section.collapsed .acc-head,#courtroom-svg-wrap.collapsed .acc-head{margin-bottom:0}
+.panel-section.collapsed,#courtroom-svg-wrap.collapsed{padding-top:9px;padding-bottom:9px}
+
+/* Phase bar: one compact line by default; click to reveal the full clickable track */
+#phase-track{height:auto;min-height:36px;align-items:center;padding:0 16px;overflow:visible;flex-wrap:wrap;gap:0}
+#pt-toggle{background:none;border:none;color:var(--gold);font-family:'Inter',sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;gap:8px;padding:9px 0;white-space:nowrap}
+#pt-toggle:hover{filter:brightness(1.15)}
+#pt-toggle .pt-chev{font-size:9px;color:var(--text-dim);transition:transform .2s}
+#phase-track.expanded #pt-toggle .pt-chev{transform:rotate(90deg)}
+#pt-steps{display:none;width:100%;overflow-x:auto;align-items:center;padding-bottom:7px}
+#phase-track.expanded #pt-steps{display:flex}
 </style>
 </head>
 <body>
@@ -742,9 +760,8 @@ body{
   <!-- RIGHT -->
   <div id="right-panel">
     <div class="panel-section" id="quick-obj-section">
-      <div class="panel-label">⚠ Quick Objections <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— click to raise</span></div>
+      <div class="panel-label">⚠ Quick Objections</div>
       <div id="quick-obj"></div>
-      <div style="font-size:9px;color:var(--text-muted);margin-top:5px;line-height:1.4">Hover a chip for the full phrasing. Use during examination — not during opening/closing.</div>
     </div>
     <div class="panel-section" id="evidence-section">
       <div class="panel-label" style="display:flex;justify-content:space-between;align-items:center;gap:6px">Evidence <button onclick="openDoc('exhibits')" title="Open the real Exhibits PDF in split view" style="font-size:9px;font-weight:700;letter-spacing:.04em;padding:3px 7px;border-radius:7px;border:1px solid #2a5a4f;background:rgba(143,212,196,.08);color:#8fd4c4;cursor:pointer;font-family:'Inter',sans-serif">📄 PDF</button></div>
@@ -1088,7 +1105,8 @@ const PHASES=FLOW.map(f=>f.id);
 function flow(id){return FLOW.find(f=>f.id===(id||S.phase))||null;}
 function userActive(f){if(!f)return false;if(f.kind==='opening'||f.kind==='closing')return f.actor===S.role;if(f.kind==='direct'||f.kind==='cross')return f.examiner===S.role;return false;}
 function phaseWitnessKey(f){if(!f||(f.kind!=='direct'&&f.kind!=='cross'))return null;const prefix=f.wside==='prosecution'?'wp':'wd';const slotId=f.wside+f.slot;if(f.kind==='direct'&&!S.slotWitness[slotId])S.slotWitness[slotId]=prefix+f.slot;return S.slotWitness[slotId]||(prefix+f.slot);}
-function buildPhaseTrack(){const c=document.getElementById('phase-track');if(!c)return;c.innerHTML=FLOW.map((f,i)=>(i?'<div class="pt-sep">›</div>':'')+`<div class="pt-step" id="pt-${f.id}">${f.label}</div>`).join('');bindPhaseSkip();}
+function buildPhaseTrack(){const c=document.getElementById('phase-track');if(!c)return;c.innerHTML='<button id="pt-toggle" onclick="togglePhaseTrack()" title="Show all phases — click any to jump there"><span class="pt-chev">▸</span><span id="pt-current">—</span></button><div id="pt-steps">'+FLOW.map((f,i)=>(i?'<div class="pt-sep">›</div>':'')+`<div class="pt-step" id="pt-${f.id}">${f.label}</div>`).join('')+'</div>';bindPhaseSkip();}
+function togglePhaseTrack(){const t=document.getElementById('phase-track');if(t)t.classList.toggle('expanded');}
 function phaseGuide(f){
   if(!f)return '';
   if(f.kind==='pretrial')return 'Pre-trial motions & stipulations. Click the "Pre-Trial" button to open the conference.';
@@ -1110,7 +1128,7 @@ async function startTrial(){
   saveSetupPrefs();clearSession();
   CASE.evidence.forEach(e=>{S.evidenceState[e.id]='pending';});S.slotWitness={};
   document.getElementById('setup-screen').style.display='none';
-  buildCharList();buildEvidenceList();buildQuickObj();buildDocTabs();initNotes();loadSettings();loadLayout();buildPhaseTrack();initPanelResizers();applyTextScale();startTimer();updatePhaseUI();enableButtons();
+  buildCharList();buildEvidenceList();buildQuickObj();buildDocTabs();initNotes();loadSettings();loadLayout();buildPhaseTrack();initPanelResizers();initAccordions();applyTextScale();startTimer();updatePhaseUI();enableButtons();
   tutorial('welcome',null,'Welcome to your trial','You are the '+S.role+'. Type or click 🎤 Speak to make your statements. Object using the buttons or the chips on the right. Open 🏛 Courtroom for a full-screen view with speech bubbles, and ⚙ Settings to toggle tutorials and the objection-training Spotter.');
   await checkOllama();
   await beginTrial();
@@ -1294,6 +1312,7 @@ document.addEventListener('keydown',e=>{if(e.target.id==='pretrial-input'&&e.key
 function updatePhaseUI(){
   const idx=PHASES.indexOf(S.phase);const f=flow();
   FLOW.forEach((ff,i)=>{const el=document.getElementById('pt-'+ff.id);if(!el)return;el.className='pt-step';if(i<idx)el.classList.add('done');else if(i===idx)el.classList.add('active');});
+  const cur=document.getElementById('pt-current');if(cur&&f)cur.textContent=f.label+'  ·  '+(idx+1)+'/'+FLOW.length;
   const pg=document.getElementById('phase-guide');if(pg)pg.textContent=phaseGuide(f);
   if(f&&(f.kind==='direct'||f.kind==='cross')){
     S.currentWitnessKey=phaseWitnessKey(f);
@@ -1605,7 +1624,31 @@ function resetTutorials(){try{localStorage.removeItem('mt_tut');}catch(e){}const
 
 // ═══════════ SKIP TO ANY PHASE (practice) ═══════════
 function bindPhaseSkip(){
-  FLOW.forEach(f=>{const el=document.getElementById('pt-'+f.id);if(!el)return;el.style.cursor='pointer';el.title='Skip to '+f.label+' to practice this part';el.onclick=()=>jumpToPhase(f.id);});
+  FLOW.forEach(f=>{const el=document.getElementById('pt-'+f.id);if(!el)return;el.style.cursor='pointer';el.title='Skip to '+f.label+' to practice this part';el.onclick=()=>{const t=document.getElementById('phase-track');if(t)t.classList.remove('expanded');jumpToPhase(f.id);};});
+}
+// Collapsible side-panel sections — clear chevron headers, persisted, sensible defaults.
+function initAccordions(){
+  let state={};try{state=JSON.parse(localStorage.getItem('mt_acc')||'{}');}catch(e){}
+  const DEFAULT_COLLAPSED=['courtroom-svg-wrap','speaking-section','notes-section','objlog-section'];
+  document.querySelectorAll('#left-panel .panel-section, #left-panel #courtroom-svg-wrap, #right-panel .panel-section').forEach(sec=>{
+    if(sec.dataset.acc)return;
+    const label=sec.querySelector('.panel-label');if(!label)return;
+    sec.dataset.acc='1';
+    const key=sec.id||label.textContent.trim().slice(0,16);
+    const body=document.createElement('div');body.className='panel-body';
+    while(label.nextSibling)body.appendChild(label.nextSibling);
+    sec.appendChild(body);
+    label.classList.add('acc-head');
+    const chev=document.createElement('span');chev.className='acc-chev';chev.textContent='▾';label.appendChild(chev);
+    const collapsed=(key in state)?!!state[key]:DEFAULT_COLLAPSED.includes(key);
+    sec.classList.toggle('collapsed',collapsed);
+    label.addEventListener('click',e=>{
+      if(e.target.tagName==='BUTTON')return; // keep inner buttons (e.g. Evidence PDF) working
+      const now=!sec.classList.contains('collapsed');
+      sec.classList.toggle('collapsed',now);state[key]=now;
+      try{localStorage.setItem('mt_acc',JSON.stringify(state));}catch(_){}
+    });
+  });
 }
 async function jumpToPhase(target){
   if(S.loading)return;
@@ -1690,7 +1733,7 @@ function resumeSession(){
   if(!d){toast('No saved trial found');return;}
   S.role=d.role;S.diff=d.diff;S.ollamaModel=d.model;S.phase=d.phase;S.currentWitnessKey=d.currentWitnessKey;S.slotWitness=d.slotWitness||{};S.history=d.history||[];S.evidenceState=d.evidenceState||{};
   document.getElementById('setup-screen').style.display='none';
-  buildCharList();buildEvidenceList();buildQuickObj();buildDocTabs();initNotes();loadSettings();loadLayout();buildPhaseTrack();initPanelResizers();enableButtons();applyTextScale();startTimer();
+  buildCharList();buildEvidenceList();buildQuickObj();buildDocTabs();initNotes();loadSettings();loadLayout();buildPhaseTrack();initPanelResizers();initAccordions();enableButtons();applyTextScale();startTimer();
   Object.keys(S.evidenceState).forEach(id=>{if(S.evidenceState[id]!=='pending')updateEvidence(id,S.evidenceState[id]);});
   transcriptLog=[];(d.log||[]).forEach(e=>addEntry(e.label,e.cssRole,e.text));
   updatePhaseUI();checkOllama();
