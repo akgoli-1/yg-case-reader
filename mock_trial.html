@@ -570,27 +570,7 @@ kbd{font-family:'Inter',sans-serif;font-size:10px;font-weight:700;background:var
 </div>
 
 <!-- PHASE TRACK -->
-<div id="phase-track">
-  <div class="pt-step active" id="pt-pretrial">Pre-Trial</div>
-  <div class="pt-sep">›</div>
-  <div class="pt-step" id="pt-opening">Opening</div>
-  <div class="pt-sep">›</div>
-  <div class="pt-step" id="pt-direct1">Direct #1</div>
-  <div class="pt-sep">›</div>
-  <div class="pt-step" id="pt-cross1">Cross #1</div>
-  <div class="pt-sep">›</div>
-  <div class="pt-step" id="pt-direct2">Direct #2</div>
-  <div class="pt-sep">›</div>
-  <div class="pt-step" id="pt-cross2">Cross #2</div>
-  <div class="pt-sep">›</div>
-  <div class="pt-step" id="pt-direct3">Direct #3</div>
-  <div class="pt-sep">›</div>
-  <div class="pt-step" id="pt-cross3">Cross #3</div>
-  <div class="pt-sep">›</div>
-  <div class="pt-step" id="pt-closing">Closing</div>
-  <div class="pt-sep">›</div>
-  <div class="pt-step" id="pt-verdict">Verdict</div>
-</div>
+<div id="phase-track"></div>
 
 <div id="main">
   <!-- LEFT -->
@@ -977,16 +957,24 @@ function _chunkText(text){
 function speak(text,profileKey,onEnd){
   if(typeof SET!=='undefined'&&!SET.autoread){if(onEnd)onEnd();return;}
   _detachUtt();window.speechSynthesis.cancel();
-  _spkProfile=profileKey;_spkOnEnd=onEnd||null;_spkActive=true;
-  _spkQueue=_chunkText(text);
+  _spkOnEnd=onEnd||null;_spkActive=true;
+  _spkQueue=_chunkText(text).map(c=>({text:c,profile:profileKey}));
+  _speakNext();
+}
+// Speak several segments (each with its own voice) back-to-back.
+function speakSeq(items,onEnd){
+  if(typeof SET!=='undefined'&&!SET.autoread){if(onEnd)onEnd();return;}
+  _detachUtt();window.speechSynthesis.cancel();
+  _spkOnEnd=onEnd||null;_spkActive=true;_spkQueue=[];
+  (items||[]).forEach(it=>{if(it&&it.text)_chunkText(it.text).forEach(c=>_spkQueue.push({text:c,profile:it.profile}));});
   _speakNext();
 }
 function _speakNext(){
   if(!_spkActive)return;
   if(!_spkQueue.length){_spkActive=false;const cb=_spkOnEnd;_spkOnEnd=null;if(cb)cb();return;}
-  const chunk=_spkQueue.shift();
-  const prof=VPROF[_spkProfile]||VPROF.judge;
-  const utt=new SpeechSynthesisUtterance(chunk);
+  const item=_spkQueue.shift();
+  const prof=VPROF[item.profile]||VPROF.judge;
+  const utt=new SpeechSynthesisUtterance(item.text);
   utt.voice=getVoice(prof.hints);utt.pitch=prof.pitch;utt.rate=Math.max(0.1,Math.min(10,ttsRate));utt.volume=1;
   utt.onend=()=>{if(_spkUtt===utt){_spkUtt=null;_speakNext();}};
   utt.onerror=()=>{if(_spkUtt===utt){_spkUtt=null;_speakNext();}};
@@ -994,23 +982,46 @@ function _speakNext(){
   try{window.speechSynthesis.speak(utt);}catch(e){_spkUtt=null;_speakNext();}
 }
 
-// ═══════════ STATE ═══════════
-const PHASES=['pretrial','opening','direct1','cross1','direct2','cross2','direct3','cross3','closing','verdict'];
-const PT_IDS=['pt-pretrial','pt-opening','pt-direct1','pt-cross1','pt-direct2','pt-cross2','pt-direct3','pt-cross3','pt-closing','pt-verdict'];
-const PHASE_GUIDES={
-  pretrial:'Pre-trial motions and stipulation questions. Raise any pretrial issues — stipulations, witness order, evidence questions. Click "Pre-Trial" button to open.',
-  opening:'2 min max. "May it please the court…" Tell the court what you will prove. Preview your 3 witnesses. NO objections permitted.',
-  direct1:'Direct exam — Witness #1. Open questions only. No leading! "Tell the court…", "Describe…", "What did you observe…" Your 18 min is shared across all 3 directs.',
-  cross1:'Cross #1 — Opponent\'s witness. Leading questions ONLY. "Isn\'t it true that…" Attack bias, contradiction, credibility. 15 min total for all crosses.',
-  direct2:'Direct #2 — Your second witness. Lay expert foundation if needed: knowledge, skill, experience, training, education.',
-  cross2:'Cross #2. Challenge methodology if expert. Use prior inconsistencies. Point out what they don\'t know.',
-  direct3:'Direct #3 — Your third witness. Close out your case theory strong.',
-  cross3:'Cross #3. Use Gigi\'s log details, witness biases, what they couldn\'t see. Save time for a sharp close.',
-  closing:'3 min max. Summarize the trial — what was actually proven. Prosecution may reserve 1 min for rebuttal. NO objections.',
-  verdict:'Judge deliberates — 4 min max.'
-};
+// ═══════════ STATE / TRIAL FLOW ═══════════
+// Real Y&G order: openings; prosecution case (each P-witness: P-direct then D-cross);
+// defense case (each D-witness: D-direct then P-cross); closings; verdict.
+const FLOW=[
+  {id:'pretrial',label:'Pre-Trial',kind:'pretrial'},
+  {id:'p_open',label:'P. Opening',kind:'opening',actor:'prosecution'},
+  {id:'d_open',label:'D. Opening',kind:'opening',actor:'defense'},
+  {id:'p_w1_d',label:'P·W1 Direct',kind:'direct',examiner:'prosecution',wside:'prosecution',slot:0},
+  {id:'p_w1_x',label:'P·W1 Cross',kind:'cross',examiner:'defense',wside:'prosecution',slot:0},
+  {id:'p_w2_d',label:'P·W2 Direct',kind:'direct',examiner:'prosecution',wside:'prosecution',slot:1},
+  {id:'p_w2_x',label:'P·W2 Cross',kind:'cross',examiner:'defense',wside:'prosecution',slot:1},
+  {id:'p_w3_d',label:'P·W3 Direct',kind:'direct',examiner:'prosecution',wside:'prosecution',slot:2},
+  {id:'p_w3_x',label:'P·W3 Cross',kind:'cross',examiner:'defense',wside:'prosecution',slot:2},
+  {id:'d_w1_d',label:'D·W1 Direct',kind:'direct',examiner:'defense',wside:'defense',slot:0},
+  {id:'d_w1_x',label:'D·W1 Cross',kind:'cross',examiner:'prosecution',wside:'defense',slot:0},
+  {id:'d_w2_d',label:'D·W2 Direct',kind:'direct',examiner:'defense',wside:'defense',slot:1},
+  {id:'d_w2_x',label:'D·W2 Cross',kind:'cross',examiner:'prosecution',wside:'defense',slot:1},
+  {id:'d_w3_d',label:'D·W3 Direct',kind:'direct',examiner:'defense',wside:'defense',slot:2},
+  {id:'d_w3_x',label:'D·W3 Cross',kind:'cross',examiner:'prosecution',wside:'defense',slot:2},
+  {id:'p_close',label:'P. Closing',kind:'closing',actor:'prosecution'},
+  {id:'d_close',label:'D. Closing',kind:'closing',actor:'defense'},
+  {id:'verdict',label:'Verdict',kind:'verdict'}
+];
+const PHASES=FLOW.map(f=>f.id);
+function flow(id){return FLOW.find(f=>f.id===(id||S.phase))||null;}
+function userActive(f){if(!f)return false;if(f.kind==='opening'||f.kind==='closing')return f.actor===S.role;if(f.kind==='direct'||f.kind==='cross')return f.examiner===S.role;return false;}
+function phaseWitnessKey(f){if(!f||(f.kind!=='direct'&&f.kind!=='cross'))return null;const prefix=f.wside==='prosecution'?'wp':'wd';const slotId=f.wside+f.slot;if(f.kind==='direct'&&!S.slotWitness[slotId])S.slotWitness[slotId]=prefix+f.slot;return S.slotWitness[slotId]||(prefix+f.slot);}
+function buildPhaseTrack(){const c=document.getElementById('phase-track');if(!c)return;c.innerHTML=FLOW.map((f,i)=>(i?'<div class="pt-sep">›</div>':'')+`<div class="pt-step" id="pt-${f.id}">${f.label}</div>`).join('');bindPhaseSkip();}
+function phaseGuide(f){
+  if(!f)return '';
+  if(f.kind==='pretrial')return 'Pre-trial motions & stipulations. Click the "Pre-Trial" button to open the conference.';
+  if(f.kind==='opening'){const yours=f.actor===S.role;return (f.actor==='prosecution'?'Prosecution':'Defense')+' opening (2 min). '+(yours?'"May it please the court…" Preview your case & witnesses. NO objections.':'Opposing counsel opens — no objections. Press "Next" or type "continue".');}
+  if(f.kind==='closing'){const yours=f.actor===S.role;return (f.actor==='prosecution'?'Prosecution':'Defense')+' closing (3 min). '+(yours?'Argue what was actually proven. NO objections.':'Opposing closing — no objections. Press "Next" or type "continue".');}
+  if(f.kind==='direct'){const yours=f.examiner===S.role;return yours?'YOUR direct — OPEN questions only, NO leading. Pick which of your witnesses at left.':'Opposing counsel directs their witness. Only the witness answers — you may OBJECT, or type "continue".';}
+  if(f.kind==='cross'){const yours=f.examiner===S.role;return yours?'YOUR cross — LEADING questions only ("Isn\'t it true that…"). Attack bias & contradictions.':'Opposing counsel crosses the witness. Only the witness answers — you may OBJECT, or type "continue".';}
+  if(f.kind==='verdict')return 'The judge deliberates and evaluates your performance.';
+  return '';
+}
 
-let S={role:'prosecution',diff:'competitive',ollamaModel:'llama3',phase:'pretrial',currentWitnessKey:null,history:[],loading:false,evidenceState:{},pretrialHistory:[]};
+let S={role:'prosecution',diff:'competitive',ollamaModel:'llama3',phase:'pretrial',currentWitnessKey:null,history:[],loading:false,evidenceState:{},pretrialHistory:[],slotWitness:{}};
 
 // ═══════════ SETUP ═══════════
 function sel(el){document.querySelectorAll(`[data-g="${el.dataset.g}"]`).forEach(e=>e.classList.remove('sel'));el.classList.add('sel');}
@@ -1018,9 +1029,9 @@ function getv(g){return document.querySelector(`[data-g="${g}"].sel`)?.dataset.v
 async function startTrial(){
   S.role=getv('role');S.diff=getv('diff');S.ollamaModel=document.getElementById('ollama-model-input').value.trim()||'llama3';
   saveSetupPrefs();clearSession();
-  CASE.evidence.forEach(e=>{S.evidenceState[e.id]='pending';});
+  CASE.evidence.forEach(e=>{S.evidenceState[e.id]='pending';});S.slotWitness={};
   document.getElementById('setup-screen').style.display='none';
-  buildCharList();buildEvidenceList();buildQuickObj();buildDocTabs();initNotes();loadSettings();loadLayout();bindPhaseSkip();initPanelResizers();applyTextScale();startTimer();updatePhaseUI();enableButtons();
+  buildCharList();buildEvidenceList();buildQuickObj();buildDocTabs();initNotes();loadSettings();loadLayout();buildPhaseTrack();initPanelResizers();applyTextScale();startTimer();updatePhaseUI();enableButtons();
   tutorial('welcome',null,'Welcome to your trial','You are the '+S.role+'. Type or click 🎤 Speak to make your statements. Object using the buttons or the chips on the right. Open 🏛 Courtroom for a full-screen view with speech bubbles, and ⚙ Settings to toggle tutorials and the objection-training Spotter.');
   await checkOllama();
   await beginTrial();
@@ -1202,19 +1213,20 @@ document.addEventListener('keydown',e=>{if(e.target.id==='pretrial-input'&&e.key
 
 // ═══════════ PHASE UI ═══════════
 function updatePhaseUI(){
-  const idx=PHASES.indexOf(S.phase);
-  PT_IDS.forEach((pid,i)=>{const el=document.getElementById(pid);el.className='pt-step';if(i<idx)el.classList.add('done');else if(i===idx)el.classList.add('active');});
-  document.getElementById('phase-guide').textContent=PHASE_GUIDES[S.phase]||'';
-  const myW=CASE.witnesses[S.role];
-  const theirW=CASE.witnesses[S.role==='prosecution'?'defense':'prosecution'];
-  const wMap={direct1:{w:myW[0],charId:S.role==='prosecution'?'wp0':'wd0'},cross1:{w:theirW[0],charId:S.role==='prosecution'?'wd0':'wp0'},direct2:{w:myW[1],charId:S.role==='prosecution'?'wp1':'wd1'},cross2:{w:theirW[1],charId:S.role==='prosecution'?'wd1':'wp1'},direct3:{w:myW[2],charId:S.role==='prosecution'?'wp2':'wd2'},cross3:{w:theirW[2],charId:S.role==='prosecution'?'wd2':'wp2'}};
-  if(wMap[S.phase]){S.currentWitnessKey=wMap[S.phase].charId;document.getElementById('svg-witness-label').textContent=wMap[S.phase].w.name.split(' ')[0].toUpperCase();}
-  else{S.currentWitnessKey=null;document.getElementById('svg-witness-label').textContent='WITNESS';}
+  const idx=PHASES.indexOf(S.phase);const f=flow();
+  FLOW.forEach((ff,i)=>{const el=document.getElementById('pt-'+ff.id);if(!el)return;el.className='pt-step';if(i<idx)el.classList.add('done');else if(i===idx)el.classList.add('active');});
+  const pg=document.getElementById('phase-guide');if(pg)pg.textContent=phaseGuide(f);
+  if(f&&(f.kind==='direct'||f.kind==='cross')){
+    S.currentWitnessKey=phaseWitnessKey(f);
+    const w=getCurrentWitness();
+    document.getElementById('svg-witness-label').textContent=w?w.name.split(' ')[0].toUpperCase():'WITNESS';
+  } else {S.currentWitnessKey=null;document.getElementById('svg-witness-label').textContent='WITNESS';}
   const nb=document.getElementById('btn-next');
-  if(nb){if(S.phase==='closing')nb.textContent='🔨 Get Verdict & Evaluation';else if(S.phase==='verdict')nb.textContent='Trial Complete';else nb.textContent='Next Phase →';}
-  // Quick-objection chips only make sense during examination phases
-  const examPhase=/^(direct|cross)/.test(S.phase);
+  if(nb){const next=FLOW[idx+1];if(!next)nb.textContent='Trial Complete';else if(next.id==='verdict')nb.textContent='🔨 Verdict & Evaluation';else nb.textContent='Next: '+next.label+' →';}
+  const examPhase=f&&(f.kind==='direct'||f.kind==='cross');
   document.querySelectorAll('.qobj-chip').forEach(c=>c.disabled=!examPhase);
+  // Active examination phase + the active speaker hint on the courtroom diagram
+  const ex=document.getElementById('svg-witness-label');
   renderWitnessCard();
   if(window._tphase!==S.phase){window._tphase=S.phase;phaseStart=Date.now();if(typeof tickTimer==='function')tickTimer();}
 }
@@ -1240,6 +1252,24 @@ function hideTyping(){typingEl?.remove();typingEl=null;}
 function buildSystem(){
   const aiRole=S.role==='prosecution'?'defense':'prosecution';
   const curW=getCurrentWitness();
+  const f=flow();
+  let phaseInstr='';
+  if(f){
+    const EXAM_RULES=`STRICT EXAMINATION RULES: only the witness (${curW?curW.name:'the witness'}) answers questions — in first person, 1-3 sentences, bound strictly to their own affidavit, never volunteering beyond it. The attorney who is NOT examining must STAY SILENT and may speak ONLY to make a short objection (e.g. "[${aiRole.toUpperCase()} ATTORNEY] Objection, hearsay."). NEVER have a non-examining attorney answer a question or add commentary. The JUDGE speaks only to rule on objections (one sentence).`;
+    if(f.kind==='opening'||f.kind==='closing'){
+      const yours=f.actor===S.role;
+      phaseInstr=`CURRENT PHASE: ${f.actor.toUpperCase()} ${f.kind.toUpperCase()}. `+(yours
+        ? `The USER (${f.actor}) delivers it. Do NOT speak for them. As [JUDGE] give at most a one-line acknowledgement. The opposing attorney does NOT speak. No objections during ${f.kind}s.`
+        : `YOU (the ${f.actor} attorney) deliver this ${f.kind} as [${f.actor.toUpperCase()} ATTORNEY], 2-3 paragraphs. No objections during ${f.kind}s.`);
+    } else if(f.kind==='direct'||f.kind==='cross'){
+      const yours=f.examiner===S.role;
+      const qtype=f.kind==='cross'?'leading':'open, non-leading';
+      phaseInstr=yours
+        ? `CURRENT PHASE: ${f.kind.toUpperCase()} of ${curW?curW.name:'the witness'} — the USER (${f.examiner}) is examining. Respond ONLY as [WITNESS: ${curW?curW.name:''}] answering the user's question — UNLESS the question is objectionable and you (as ${aiRole} attorney) make a brief objection, or the user addresses the court. ${EXAM_RULES}`
+        : `CURRENT PHASE: ${f.kind.toUpperCase()} of ${curW?curW.name:'the witness'} — YOU (the ${f.examiner} attorney) are examining and the USER is opposing counsel who may only object. On each turn ask ONE ${qtype} question as [${f.examiner.toUpperCase()} ATTORNEY] on its own line, then on the next line give the witness's answer as [WITNESS: ${curW?curW.name:''}]. Keep the examination moving. If the user objects, reply as [JUDGE] ruling sustained/overruled. ${EXAM_RULES}`;
+    } else if(f.kind==='pretrial'){phaseInstr='CURRENT PHASE: PRE-TRIAL.';}
+    else if(f.kind==='verdict'){phaseInstr='CURRENT PHASE: VERDICT & EVALUATION.';}
+  }
   return `You are running a YMCA Texas Y&G Mock Trial. Case: ${CASE.title} (${CASE.caseNo}).
 CHARGES: ${CASE.charges}
 FACTS: ${CASE.facts.join(' | ')}
@@ -1247,11 +1277,13 @@ PROSECUTION WITNESSES: ${CASE.witnesses.prosecution.map(w=>w.name+' ('+w.role+')
 DEFENSE WITNESSES: ${CASE.witnesses.defense.map(w=>w.name+' ('+w.role+'): '+w.bio).join(' || ')}
 EXHIBITS: (1)Medical Examiner (2)Council Transcript-outburst (3)X deleted post-86KM (4)MetroOne cell tower-1.8mi radius (5)Redwood Record tip (6)IT laptop-deleted searches (7)Bank wire-$10k Haven Consulting (8)Police evidence log (9)Fire Marshal-IED report (10)Library computer log (11)Maddox photo (12)Explosion photo (13)Gigi log-truck+sedan+explosion
 USER: ${S.role.toUpperCase()} ATTORNEY | YOU PLAY: ${aiRole.toUpperCase()} ATTORNEY + ALL WITNESSES + JUDGE
-CURRENT PHASE: ${S.phase}${curW ? ' | WITNESS ON STAND: '+curW.name+' - '+curW.bio : ''}
+TRIAL ORDER: prosecution opening, defense opening; PROSECUTION CASE — for each prosecution witness: prosecution direct then defense cross; DEFENSE CASE — for each defense witness: defense direct then prosecution cross; prosecution closing, defense closing; verdict. One witness is fully examined (direct then cross) before the next is called.
+${phaseInstr}
+${curW?('WITNESS ON STAND: '+curW.name+' — '+curW.bio):''}
 DIFFICULTY: ${S.diff==='competitive' ? 'Competitive Y&G: object to leading on direct (Rule 611), hearsay (802), lack of personal knowledge (602), speculation (701), improper expert (702), relevance (402), asked-and-answered (611). Sharp cross. Challenge credibility.' : 'Beginner: relaxed on objections, occasional errors.'}
 VERDICT FACTORS: ${CASE.verdictFactors}
-FORMAT: Start every response with [JUDGE], [WITNESS: Name], [${aiRole.toUpperCase()} ATTORNEY], or [COACHING] (only if user asks).
-RULES: Stay in character. Witnesses answer only what asked - 2-4 sentences. Experts must be qualified. Judge rules on objections with 1-sentence reason. Acknowledge exhibit admissions. Openings/closings: 2-3 paragraphs.`;
+FORMAT: Begin every line with a tag — [JUDGE], [WITNESS: Name], [PROSECUTION ATTORNEY], [DEFENSE ATTORNEY], or [COACHING] (only if the user asks). When you give an attorney question and then a witness answer, put each on its own line with its own tag.
+RULES: Stay in character. Witnesses answer only what is asked (1-3 sentences) and never beyond their affidavit. Judge rules on objections in one sentence. Acknowledge exhibit admissions. Openings/closings: 2-3 paragraphs.`;
 }
 function getCurrentWitness(){if(!S.currentWitnessKey)return null;const side=S.currentWitnessKey.charAt(1)==='p'?'prosecution':'defense';const idx=parseInt(S.currentWitnessKey.charAt(2),10);return CASE.witnesses[side]&&CASE.witnesses[side][idx]||null;}
 async function callOllama(userMsg){
@@ -1263,22 +1295,44 @@ async function callOllama(userMsg){
 }
 function parseAndDisplay(text){
   hideTyping();
-  const clean=text.replace(/^\[[^\]]+\]\s*/i,'').trim();
-  const judgeMatch=/^\[JUDGE\]/i.test(text.trim());
-  const witnessMatch=text.trim().match(/^\[WITNESS:\s*([^\]]+)\]/i);
-  const attyMatch=text.trim().match(/^\[(PROSECUTION|DEFENSE)\s*ATTORNEY\]/i);
-  const coachMatch=/^\[COACHING\]/i.test(text.trim());
+  // Coaching is shown out-of-band (never spoken in character).
+  if(/^\s*\[COACHING\]/i.test(text)){const clean=text.replace(/^\s*\[COACHING\]\s*/i,'').trim();const cb=document.getElementById('coaching-box');cb.style.display='block';cb.innerHTML='<strong>\u{1F4A1} Coaching:</strong> '+clean;setSpeaking(null);return;}
+  // Evidence admission scan across the whole response.
   CASE.evidence.forEach(e=>{
     const rx=new RegExp(e.name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i');
-    if(rx.test(clean)){if(/admitted|received|entered/i.test(clean))updateEvidence(e.id,'admitted');else if(/excluded|sustained.*exhibit|not admitted/i.test(clean))updateEvidence(e.id,'excluded');}
-    if(new RegExp('[Ee]xhibit\\s+'+e.num+'\\b').test(clean)){if(/admitted|received|entered/i.test(clean))updateEvidence(e.id,'admitted');else if(/excluded|sustained/i.test(clean))updateEvidence(e.id,'excluded');}
+    if(rx.test(text)){if(/admitted|received|entered/i.test(text))updateEvidence(e.id,'admitted');else if(/excluded|not admitted/i.test(text))updateEvidence(e.id,'excluded');}
+    if(new RegExp('[Ee]xhibit\\s+'+e.num+'\\b').test(text)){if(/admitted|received|entered/i.test(text))updateEvidence(e.id,'admitted');else if(/excluded/i.test(text))updateEvidence(e.id,'excluded');}
   });
-  if(judgeMatch&&/sustained|overruled/i.test(clean))addObjLog(/sustained/i.test(clean)?'Sustained':'Overruled',clean.split('.')[0]);
-  if(coachMatch){const cb=document.getElementById('coaching-box');cb.style.display='block';cb.innerHTML='<strong>\u{1F4A1} Coaching:</strong> '+clean;setSpeaking(null);return;}
-  if(judgeMatch){addEntry('JUDGE','judge',clean);setSpeaking('judge');speak(clean,'judge',()=>setSpeaking(null));return;}
-  if(witnessMatch){const charId=S.currentWitnessKey||'wp0';const w=getCurrentWitness();addEntry('WITNESS: '+witnessMatch[1].trim(),'witness',clean);setSpeaking(charId);speak(clean,w?.voiceKey||'witness0p',()=>setSpeaking(null));runSpotter(clean);return;}
-  if(attyMatch){const side=attyMatch[1].toLowerCase();addEntry(side.toUpperCase()+' ATTORNEY',side,clean);setSpeaking('aiatty');speak(clean,side,()=>setSpeaking(null));if(side!==S.role)runSpotter(clean);return;}
-  addEntry('COURT','judge',clean);setSpeaking('judge');speak(clean,'judge',()=>setSpeaking(null));
+  // Split the response into tagged segments so an attorney Q + witness A render separately.
+  const re=/\[(JUDGE|WITNESS:[^\]]*|PROSECUTION ATTORNEY|DEFENSE ATTORNEY)\]/gi;
+  const pos=[];let m;while((m=re.exec(text))){pos.push({idx:m.index,full:m[0],tag:m[1]});}
+  if(!pos.length){const clean=text.replace(/^\[[^\]]+\]\s*/i,'').trim();addEntry('COURT','judge',clean);setSpeaking('judge');speak(clean,'judge',()=>setSpeaking(null));return;}
+  const speech=[];let lastId=null;
+  for(let i=0;i<pos.length;i++){
+    const start=pos[i].idx+pos[i].full.length;
+    const end=i+1<pos.length?pos[i+1].idx:text.length;
+    const body=text.slice(start,end).trim();
+    if(!body)continue;
+    const tag=pos[i].tag;
+    if(/^JUDGE$/i.test(tag)){
+      addEntry('JUDGE','judge',body);
+      if(/sustained|overruled/i.test(body))addObjLog(/sustained/i.test(body)?'Sustained':'Overruled',body.split('.')[0]);
+      speech.push({text:body,profile:'judge'});lastId='judge';
+    } else if(/^WITNESS/i.test(tag)){
+      const nm=(tag.split(':')[1]||'').trim()||((getCurrentWitness()||{}).name)||'Witness';
+      const w=getCurrentWitness();
+      addEntry('WITNESS: '+nm,'witness',body);
+      speech.push({text:body,profile:(w&&w.voiceKey)||'witness0p'});lastId=S.currentWitnessKey||'wp0';
+      runSpotter(body);
+    } else {
+      const side=/PROSECUTION/i.test(tag)?'prosecution':'defense';
+      addEntry(side.toUpperCase()+' ATTORNEY',side,body);
+      speech.push({text:body,profile:side});lastId='aiatty';
+      if(side!==S.role)runSpotter(body);
+    }
+  }
+  if(lastId)setSpeaking(lastId);
+  speakSeq(speech,()=>setSpeaking(null));
 }
 
 // TRIAL FLOW
@@ -1304,13 +1358,27 @@ async function nextPhase(){
   if(S.loading)return;
   const idx=PHASES.indexOf(S.phase);if(idx>=PHASES.length-1)return;
   S.phase=PHASES[idx+1];updatePhaseUI();
-  addEntry('COURT OFFICER','system','- '+S.phase.replace(/(\d)/,' #$1').toUpperCase()+' -');
-  if(S.phase==='verdict'){await renderVerdict();return;}
-  if(S.phase==='pretrial'){openPretrial();return;}
-  const curW=getCurrentWitness();
-  const transition='Phase is now: '+S.phase+'. '+(curW?'The witness up is '+curW.name+'.':'')+' As the judge, acknowledge the transition. Invite the '+S.role+' attorney to proceed.';
+  const f=flow();
+  addEntry('COURT OFFICER','system','\u2014 '+(f?f.label.toUpperCase():S.phase)+' \u2014');
+  if(!f)return;
+  if(f.kind==='verdict'){await renderVerdict();return;}
+  if(f.kind==='pretrial'){openPretrial();return;}
+  await runPhaseTransition(f);
+}
+async function runPhaseTransition(f){
+  const yours=userActive(f);const curW=getCurrentWitness();
+  let prompt;
+  if(f.kind==='opening'||f.kind==='closing'){
+    prompt=yours
+      ? `It is now the ${f.actor} ${f.kind}, delivered by the USER. As [JUDGE], invite the ${f.actor} to deliver their ${f.kind} in one sentence.`
+      : `It is now the ${f.actor} ${f.kind}. Deliver it yourself as [${f.actor.toUpperCase()} ATTORNEY] in 2-3 paragraphs.`;
+  } else {
+    prompt=yours
+      ? `It is now the ${f.kind} of ${curW?curW.name:'the witness'}, conducted by the USER (${f.examiner}). As [JUDGE], note the witness is sworn and invite the ${f.examiner} to proceed, in one sentence.`
+      : `It is now the ${f.kind} of ${curW?curW.name:'the witness'}, conducted by YOU (the ${f.examiner} attorney); the user is opposing counsel and may only object. Begin: ask your first ${f.kind==='cross'?'leading':'open, non-leading'} question as [${f.examiner.toUpperCase()} ATTORNEY] on one line, then give ${curW?curW.name:'the witness'}'s answer as [WITNESS: ${curW?curW.name:''}] on the next line.`;
+  }
   S.loading=true;setButtons(true);showTyping();setSpeaking('judge');
-  try{const resp=await callOllama(transition);S.history.push({role:'user',content:transition});S.history.push({role:'assistant',content:resp});parseAndDisplay(resp);}
+  try{const resp=await callOllama(prompt);S.history.push({role:'user',content:prompt});S.history.push({role:'assistant',content:resp});parseAndDisplay(resp);}
   catch(e){hideTyping();addEntry('SYSTEM','system','\u26a0 Ollama error.');}
   S.loading=false;setButtons(false);
 }
@@ -1377,28 +1445,33 @@ function togglePanel(side){const cls=side==='left'?'hide-left':'hide-right';docu
 function renderWitnessCard(){
   const sec=document.getElementById('witness-section'),card=document.getElementById('witness-card');
   if(!sec||!card)return;
-  const isDirect=/^direct/.test(S.phase),isCross=/^cross/.test(S.phase);
-  if(!isDirect&&!isCross){sec.style.display='none';return;}
+  const f=flow();
+  if(!f||(f.kind!=='direct'&&f.kind!=='cross')){sec.style.display='none';return;}
+  const w=getCurrentWitness();
+  if(!w){sec.style.display='none';return;}
   sec.style.display='block';
-  // Direct = your witnesses; Cross = the opposing side's witnesses. Any order.
-  const side=(S.role==='prosecution')?(isDirect?'prosecution':'defense'):(isDirect?'defense':'prosecution');
-  const prefix=side==='prosecution'?'wp':'wd';
-  const list=CASE.witnesses[side];
-  if(!S.currentWitnessKey||S.currentWitnessKey.charAt(1)!==prefix.charAt(1)){S.currentWitnessKey=prefix+'0';}
-  const w=getCurrentWitness()||list[0];
-  const sel=list.map((ww,i)=>`<button class="wchip ${S.currentWitnessKey===prefix+i?'active':''}" onclick="setWitness('${prefix+i}')">${ww.name.split(' ')[0]}</button>`).join('');
-  const tag=isDirect?'<span style="color:var(--gold)">Your witness — open questions, no leading</span>':'<span style="color:var(--prosecution)">Opposing witness — lead &amp; impeach</span>';
-  card.innerHTML=`<div style="font-size:9px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em">Call any witness, any order</div>
-  <div class="wsel">${sel}</div>
-  <div style="font-family:'EB Garamond',serif;font-size:14px;font-weight:600;color:var(--witness)">${w.name}</div>
+  const youExamine=f.examiner===S.role;
+  // You choose the order of your OWN witnesses, on your own direct.
+  const canPick=(f.kind==='direct'&&youExamine);
+  let selHtml='';
+  if(canPick){
+    const prefix=f.wside==='prosecution'?'wp':'wd';
+    const list=CASE.witnesses[f.wside];
+    selHtml='<div style="font-size:9px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em">Call any witness, any order</div><div class="wsel">'+list.map((ww,i)=>`<button class="wchip ${S.currentWitnessKey===prefix+i?'active':''}" onclick="setWitness('${prefix+i}')">${ww.name.split(' ')[0]}</button>`).join('')+'</div>';
+  }
+  const tag = f.kind==='direct'
+    ? (youExamine?'<span style="color:var(--gold)">Your direct — open questions, no leading</span>':'<span style="color:var(--text-dim)">Opposing direct — only the witness speaks; you may object</span>')
+    : (youExamine?'<span style="color:var(--prosecution)">Your cross — lead &amp; impeach</span>':'<span style="color:var(--text-dim)">Opposing cross — only the witness speaks; you may object</span>');
+  card.innerHTML=selHtml+`<div style="font-family:'EB Garamond',serif;font-size:14px;font-weight:600;color:var(--witness)">${w.name}</div>
   <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">${w.role}</div>
   <div style="font-size:10px;margin-bottom:6px">${tag}</div>
   <div class="wbio" style="font-size:10.5px;color:var(--text-dim);line-height:1.5;max-height:170px;overflow:auto;padding-right:4px">${w.bio}</div>
   <button onclick="openDoc('case')" title="Open the full affidavits PDF in split view" style="margin-top:7px;font-size:9px;font-weight:700;letter-spacing:.04em;padding:4px 8px;border-radius:7px;border:1px solid #2a5a4f;background:rgba(143,212,196,.08);color:#8fd4c4;cursor:pointer;font-family:'Inter',sans-serif">📄 Full affidavit</button>`;
 }
 function setWitness(key){
-  if(S.currentWitnessKey===key)return;
-  S.currentWitnessKey=key;
+  const f=flow();
+  if(!f||f.kind!=='direct'||f.examiner!==S.role)return; // only choose on your own direct
+  const slotId=f.wside+f.slot;S.slotWitness[slotId]=key;S.currentWitnessKey=key;
   const w=getCurrentWitness();
   const lab=document.getElementById('svg-witness-label');if(lab&&w)lab.textContent=w.name.split(' ')[0].toUpperCase();
   if(w)addEntry('COURT OFFICER','system','— '+w.name+' takes the stand —');
@@ -1453,20 +1526,17 @@ function resetTutorials(){try{localStorage.removeItem('mt_tut');}catch(e){}const
 
 // ═══════════ SKIP TO ANY PHASE (practice) ═══════════
 function bindPhaseSkip(){
-  PT_IDS.forEach((pid,i)=>{const el=document.getElementById(pid);if(!el)return;el.style.cursor='pointer';el.title='Skip to '+PHASES[i]+' to practice this part';el.onclick=()=>jumpToPhase(PHASES[i]);});
+  FLOW.forEach(f=>{const el=document.getElementById('pt-'+f.id);if(!el)return;el.style.cursor='pointer';el.title='Skip to '+f.label+' to practice this part';el.onclick=()=>jumpToPhase(f.id);});
 }
 async function jumpToPhase(target){
   if(S.loading)return;
   S.phase=target;updatePhaseUI();clearSpotter();
-  addEntry('COURT OFFICER','system','— Skipped to '+target.replace(/(\d)/,' #$1').toUpperCase()+' (practice) —');
-  if(target==='verdict'){await renderVerdict();return;}
-  if(target==='pretrial'){openPretrial();return;}
-  const curW=getCurrentWitness();
-  const prompt='We are skipping directly to the '+target+' phase for focused practice.'+(curW?' The witness on the stand is '+curW.name+'.':'')+' As the judge, briefly set the scene for this phase in one or two sentences and invite the '+S.role+' attorney to proceed.';
-  S.loading=true;setButtons(true);showTyping();setSpeaking('judge');
-  try{const resp=await callOllama(prompt);S.history.push({role:'user',content:prompt});S.history.push({role:'assistant',content:resp});parseAndDisplay(resp);}
-  catch(e){hideTyping();addEntry('SYSTEM','system','⚠ Ollama error.');}
-  S.loading=false;setButtons(false);
+  const f=flow();
+  addEntry('COURT OFFICER','system','— Skipped to '+(f?f.label.toUpperCase():target)+' (practice) —');
+  if(!f)return;
+  if(f.kind==='verdict'){await renderVerdict();return;}
+  if(f.kind==='pretrial'){openPretrial();return;}
+  await runPhaseTransition(f);
 }
 
 // ═══════════ DRAGGABLE PANEL RESIZERS ═══════════
@@ -1533,15 +1603,15 @@ function updateDrillScore(){const e=document.getElementById('drill-score');if(e)
 let transcriptLog=[],_saveT=null,textScale=1,timerInt=null,phaseStart=Date.now();
 function toast(msg,ms){const t=document.getElementById('toast');if(!t)return;t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),ms||2200);}
 function scheduleSave(){clearTimeout(_saveT);_saveT=setTimeout(saveSession,800);}
-function saveSession(){try{localStorage.setItem('mt_session',JSON.stringify({role:S.role,diff:S.diff,model:S.ollamaModel,phase:S.phase,currentWitnessKey:S.currentWitnessKey,history:S.history,evidenceState:S.evidenceState,log:transcriptLog}));}catch(e){}}
+function saveSession(){try{localStorage.setItem('mt_session',JSON.stringify({role:S.role,diff:S.diff,model:S.ollamaModel,phase:S.phase,currentWitnessKey:S.currentWitnessKey,slotWitness:S.slotWitness,history:S.history,evidenceState:S.evidenceState,log:transcriptLog}));}catch(e){}}
 function hasSession(){try{return !!localStorage.getItem('mt_session');}catch(e){return false;}}
 function clearSession(){try{localStorage.removeItem('mt_session');}catch(e){}}
 function resumeSession(){
   let d;try{d=JSON.parse(localStorage.getItem('mt_session')||'null');}catch(e){}
   if(!d){toast('No saved trial found');return;}
-  S.role=d.role;S.diff=d.diff;S.ollamaModel=d.model;S.phase=d.phase;S.currentWitnessKey=d.currentWitnessKey;S.history=d.history||[];S.evidenceState=d.evidenceState||{};
+  S.role=d.role;S.diff=d.diff;S.ollamaModel=d.model;S.phase=d.phase;S.currentWitnessKey=d.currentWitnessKey;S.slotWitness=d.slotWitness||{};S.history=d.history||[];S.evidenceState=d.evidenceState||{};
   document.getElementById('setup-screen').style.display='none';
-  buildCharList();buildEvidenceList();buildQuickObj();buildDocTabs();initNotes();loadSettings();loadLayout();bindPhaseSkip();initPanelResizers();enableButtons();applyTextScale();startTimer();
+  buildCharList();buildEvidenceList();buildQuickObj();buildDocTabs();initNotes();loadSettings();loadLayout();buildPhaseTrack();initPanelResizers();enableButtons();applyTextScale();startTimer();
   Object.keys(S.evidenceState).forEach(id=>{if(S.evidenceState[id]!=='pending')updateEvidence(id,S.evidenceState[id]);});
   transcriptLog=[];(d.log||[]).forEach(e=>addEntry(e.label,e.cssRole,e.text));
   updatePhaseUI();checkOllama();
@@ -1559,9 +1629,9 @@ function copyTranscript(){if(!transcriptLog.length){toast('Nothing to copy yet')
 function scrollLatest(){const t=document.getElementById('transcript');t.scrollTop=t.scrollHeight;const b=document.getElementById('to-latest');if(b)b.classList.remove('show');}
 // voice + timer
 function stopVoice(){_spkActive=false;_spkQueue=[];_detachUtt();try{window.speechSynthesis.cancel();}catch(e){}setSpeaking(null);}
-const PHASE_LIMIT={opening:120,direct1:360,direct2:360,direct3:360,cross1:300,cross2:300,cross3:300,closing:180,verdict:240};
+const PHASE_LIMIT={opening:120,direct:300,cross:240,closing:180,verdict:240};
 function startTimer(){phaseStart=Date.now();window._tphase=S.phase;if(timerInt)clearInterval(timerInt);timerInt=setInterval(tickTimer,1000);tickTimer();}
-function tickTimer(){const el=document.getElementById('phase-timer');if(!el)return;const s=Math.max(0,Math.floor((Date.now()-phaseStart)/1000));const lim=PHASE_LIMIT[S.phase]||0;const fmt=x=>Math.floor(x/60)+':'+String(x%60).padStart(2,'0');el.textContent='⏱ '+fmt(s)+(lim?(' / '+fmt(lim)):'');el.classList.toggle('over',!!lim&&s>lim);}
+function tickTimer(){const el=document.getElementById('phase-timer');if(!el)return;const s=Math.max(0,Math.floor((Date.now()-phaseStart)/1000));const f=flow();const lim=(f&&PHASE_LIMIT[f.kind])||0;const fmt=x=>Math.floor(x/60)+':'+String(x%60).padStart(2,'0');el.textContent='⏱ '+fmt(s)+(lim?(' / '+fmt(lim)):'');el.classList.toggle('over',!!lim&&s>lim);}
 // shortcuts
 function openShortcuts(){document.getElementById('shortcuts-overlay').classList.add('open');}
 function closeShortcuts(){document.getElementById('shortcuts-overlay').classList.remove('open');}
