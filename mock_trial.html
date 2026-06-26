@@ -466,6 +466,47 @@ body.hide-left #rz-left,body.hide-right #rz-right{display:none}
 .sc-body>div{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-dim)}
 kbd{font-family:'Inter',sans-serif;font-size:10px;font-weight:700;background:var(--surface2);border:1px solid var(--border2);border-bottom-width:2px;border-radius:5px;padding:2px 6px;color:var(--text)}
 .sc-foot{padding:11px 18px;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted)}
+
+/* ═══════════ WITNESS SELECTOR (any order) ═══════════ */
+.wsel{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:9px}
+.wchip{font-size:10px;font-weight:600;padding:4px 8px;border-radius:7px;border:1px solid var(--border2);background:var(--surface2);color:var(--text-dim);cursor:pointer;font-family:'Inter',sans-serif;transition:all .12s;white-space:nowrap}
+.wchip:hover{border-color:var(--gold-dim);color:var(--text)}
+.wchip.active{border-color:var(--witness);color:var(--witness);background:rgba(87,173,121,.12)}
+
+/* ═══════════ COLLAPSE-ON-DRAG + GRABBABLE RESIZER ═══════════ */
+#left-panel.collapsed,#right-panel.collapsed{width:0!important;min-width:0;border:none;overflow:hidden}
+.panel-resizer::before{background:rgba(255,255,255,.045)}
+.panel-resizer:hover::before,.panel-resizer.dragging::before{background:var(--gold-dim)}
+
+/* ═══════════ RESPONSIVE PANELS (adapt info to width) ═══════════ */
+#left-panel,#right-panel{container-type:inline-size}
+@container (max-width:142px){
+  #left-panel #courtroom-svg-wrap{display:none}
+  #left-panel .char-role{display:none}
+  #left-panel .char-avatar{width:18px;height:18px;font-size:9px}
+  #left-panel .char-name{font-size:10px}
+  #left-panel #phase-guide{font-size:10px}
+  #left-panel .wbio{max-height:92px}
+  #left-panel .wchip{font-size:9px;padding:3px 6px}
+  #left-panel #notes-pad{min-height:48px}
+  #right-panel .ev-desc{display:none}
+  #right-panel .ev-name{font-size:10px}
+  #right-panel .qobj-chip{font-size:9px;padding:3px 6px}
+  .panel-section{padding:7px 8px}
+}
+@container (min-width:240px){
+  #left-panel .char-name{font-size:12px}#left-panel .char-role{font-size:9px}
+  #left-panel .char-avatar{width:26px;height:26px}
+  #left-panel #phase-guide{font-size:12px;line-height:1.7}
+  #left-panel #witness-card{font-size:11px}
+  #left-panel .wbio{max-height:260px}
+  #left-panel #notes-pad{min-height:96px;font-size:11px}
+  #right-panel .evidence-item{padding:8px 10px}
+  #right-panel .ev-name{font-size:12px}
+  #right-panel .ev-desc{font-size:10px}
+  #right-panel .qobj-chip{font-size:10.5px;padding:5px 9px}
+  .panel-section{padding:11px 13px}
+}
 </style>
 </head>
 <body>
@@ -515,8 +556,6 @@ kbd{font-family:'Inter',sans-serif;font-size:10px;font-weight:700;background:var
   <h1>⚖️ Mock Trial</h1>
   <span id="case-title">State v. Harper Lynn · Murder · Conspiracy · Solicitation</span>
   <div id="header-right">
-    <button class="hdr-toggle" id="tg-left" onclick="togglePanel('left')" title="Show or hide the left panel (courtroom, witness, notes)">◧ Left</button>
-    <button class="hdr-toggle" id="tg-right" onclick="togglePanel('right')" title="Show or hide the right panel (objections, evidence)">Right ◨</button>
     <button class="hdr-toggle gear" id="btn-settings" onclick="openSettings()" title="Settings — tutorials & objection training">⚙</button>
     <button class="hdr-toggle" id="btn-keys" onclick="openShortcuts()" title="Keyboard shortcuts (press ?)">⌨</button>
     <div id="phase-timer" class="hdr-chip" title="Time on this phase, with the Y&G target">⏱ 0:00</div>
@@ -1007,7 +1046,7 @@ function buildEvidenceList(){
   document.getElementById('evidence-list').innerHTML=CASE.evidence.map(e=>`
     <div class="evidence-item pending" id="ev-${e.id}" onclick="showExhibit('${e.id}')">
       <div class="ev-name">Ex. ${e.num}: ${e.name}</div>
-      <div style="font-size:9px;color:var(--text-muted);margin-bottom:1px">${e.desc}</div>
+      <div class="ev-desc" style="font-size:9px;color:var(--text-muted);margin-bottom:1px">${e.desc}</div>
       <div class="ev-status">Pending</div>
     </div>`).join('');
 }
@@ -1320,16 +1359,33 @@ function togglePanel(side){const cls=side==='left'?'hide-left':'hide-right';docu
 function renderWitnessCard(){
   const sec=document.getElementById('witness-section'),card=document.getElementById('witness-card');
   if(!sec||!card)return;
-  const w=getCurrentWitness();
-  if(!w){sec.style.display='none';return;}
+  const isDirect=/^direct/.test(S.phase),isCross=/^cross/.test(S.phase);
+  if(!isDirect&&!isCross){sec.style.display='none';return;}
   sec.style.display='block';
-  const isDirect=/^direct/.test(S.phase);
+  // Direct = your witnesses; Cross = the opposing side's witnesses. Any order.
+  const side=(S.role==='prosecution')?(isDirect?'prosecution':'defense'):(isDirect?'defense':'prosecution');
+  const prefix=side==='prosecution'?'wp':'wd';
+  const list=CASE.witnesses[side];
+  if(!S.currentWitnessKey||S.currentWitnessKey.charAt(1)!==prefix.charAt(1)){S.currentWitnessKey=prefix+'0';}
+  const w=getCurrentWitness()||list[0];
+  const sel=list.map((ww,i)=>`<button class="wchip ${S.currentWitnessKey===prefix+i?'active':''}" onclick="setWitness('${prefix+i}')">${ww.name.split(' ')[0]}</button>`).join('');
   const tag=isDirect?'<span style="color:var(--gold)">Your witness — open questions, no leading</span>':'<span style="color:var(--prosecution)">Opposing witness — lead &amp; impeach</span>';
-  card.innerHTML=`<div style="font-family:'EB Garamond',serif;font-size:14px;font-weight:600;color:var(--witness)">${w.name}</div>
+  card.innerHTML=`<div style="font-size:9px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em">Call any witness, any order</div>
+  <div class="wsel">${sel}</div>
+  <div style="font-family:'EB Garamond',serif;font-size:14px;font-weight:600;color:var(--witness)">${w.name}</div>
   <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">${w.role}</div>
   <div style="font-size:10px;margin-bottom:6px">${tag}</div>
-  <div style="font-size:10.5px;color:var(--text-dim);line-height:1.5;max-height:170px;overflow:auto;padding-right:4px">${w.bio}</div>
+  <div class="wbio" style="font-size:10.5px;color:var(--text-dim);line-height:1.5;max-height:170px;overflow:auto;padding-right:4px">${w.bio}</div>
   <button onclick="openDoc('case')" title="Open the full affidavits PDF in split view" style="margin-top:7px;font-size:9px;font-weight:700;letter-spacing:.04em;padding:4px 8px;border-radius:7px;border:1px solid #2a5a4f;background:rgba(143,212,196,.08);color:#8fd4c4;cursor:pointer;font-family:'Inter',sans-serif">📄 Full affidavit</button>`;
+}
+function setWitness(key){
+  if(S.currentWitnessKey===key)return;
+  S.currentWitnessKey=key;
+  const w=getCurrentWitness();
+  const lab=document.getElementById('svg-witness-label');if(lab&&w)lab.textContent=w.name.split(' ')[0].toUpperCase();
+  if(w)addEntry('COURT OFFICER','system','— '+w.name+' takes the stand —');
+  renderWitnessCard();
+  if(typeof scheduleSave==='function')scheduleSave();
 }
 function initNotes(){const n=document.getElementById('notes-pad');if(!n)return;try{n.value=localStorage.getItem('mt_notes')||'';}catch(e){}n.addEventListener('input',()=>{try{localStorage.setItem('mt_notes',n.value);}catch(e){}});}
 
@@ -1399,14 +1455,18 @@ async function jumpToPhase(target){
 function initPanelResizers(){
   setupResizer('rz-left','left-panel','left');
   setupResizer('rz-right','right-panel','right');
-  try{const w=JSON.parse(localStorage.getItem('mt_pw')||'{}');if(w.left)document.getElementById('left-panel').style.width=w.left+'px';if(w.right)document.getElementById('right-panel').style.width=w.right+'px';}catch(e){}
+  try{const w=JSON.parse(localStorage.getItem('mt_pw')||'{}');
+    if(typeof w.left==='number'){const lp=document.getElementById('left-panel');lp.style.width=w.left+'px';lp.classList.toggle('collapsed',w.left===0);}
+    if(typeof w.right==='number'){const rp=document.getElementById('right-panel');rp.style.width=w.right+'px';rp.classList.toggle('collapsed',w.right===0);}
+  }catch(e){}
 }
+function savePanelWidths(){try{const lp=document.getElementById('left-panel'),rp=document.getElementById('right-panel');localStorage.setItem('mt_pw',JSON.stringify({left:parseInt(lp.style.width),right:parseInt(rp.style.width)}));}catch(e){}}
 function setupResizer(rzId,panelId,side){
   const rz=document.getElementById(rzId),panel=document.getElementById(panelId),main=document.getElementById('main');if(!rz)return;
   let dragging=false;
   rz.addEventListener('pointerdown',e=>{dragging=true;rz.classList.add('dragging');try{rz.setPointerCapture(e.pointerId);}catch(_){}document.body.style.userSelect='none';e.preventDefault();});
-  rz.addEventListener('pointermove',e=>{if(!dragging)return;const r=main.getBoundingClientRect();let w=side==='left'?(e.clientX-r.left):(r.right-e.clientX);w=Math.max(120,Math.min(440,w));panel.style.width=w+'px';});
-  const up=()=>{if(!dragging)return;dragging=false;rz.classList.remove('dragging');document.body.style.userSelect='';try{localStorage.setItem('mt_pw',JSON.stringify({left:parseInt(document.getElementById('left-panel').style.width)||undefined,right:parseInt(document.getElementById('right-panel').style.width)||undefined}));}catch(e){}};
+  rz.addEventListener('pointermove',e=>{if(!dragging)return;const r=main.getBoundingClientRect();let w=side==='left'?(e.clientX-r.left):(r.right-e.clientX);if(w<58)w=0;else w=Math.max(132,Math.min(460,w));panel.style.width=w+'px';panel.classList.toggle('collapsed',w===0);});
+  const up=()=>{if(!dragging)return;dragging=false;rz.classList.remove('dragging');document.body.style.userSelect='';savePanelWidths();};
   rz.addEventListener('pointerup',up);window.addEventListener('pointerup',up);
 }
 
