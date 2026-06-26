@@ -689,7 +689,7 @@ body{
     <div class="s-label">Ollama Model</div>
     <div id="model-row">
       <input id="ollama-model-input" type="text" value="llama3" placeholder="e.g. llama3, mistral">
-      <span style="font-size:11px;color:var(--text-muted)">Run <code style="color:var(--text-dim)">ollama serve</code> first</span>
+      <span id="ollama-setup-hint" style="font-size:11px;color:var(--text-muted)">Auto-detecting… run <code style="color:var(--text-dim)">ollama serve</code></span>
     </div>
     <button id="start-btn" onclick="startTrial()">Call the Court to Order →</button>
     <button id="resume-btn" onclick="resumeSession()" style="display:none">↩ Resume your last trial</button>
@@ -1186,11 +1186,33 @@ async function startTrial(){
   await checkOllama();
   await beginTrial();
 }
-async function checkOllama(){
-  const st=document.getElementById('ollama-status');
-  try{const r=await fetch('http://localhost:11434/api/tags',{signal:AbortSignal.timeout(3000)});if(r.ok){st.className='connected';st.innerHTML='<span class="dot"></span> Ollama Connected';return true;}}catch(e){}
-  st.className='error';st.innerHTML='<span class="dot"></span> Ollama Offline — run `ollama serve`';return false;
+// ── Ollama auto-connect: poll, auto-detect models, keep status live ──
+let _ollamaModels=[];
+async function probeOllama(){
+  try{const r=await fetch('http://localhost:11434/api/tags',{signal:AbortSignal.timeout(2500)});if(r.ok){const d=await r.json();_ollamaModels=(d.models||[]).map(m=>m.name);return true;}}catch(e){}
+  return false;
 }
+function setOllamaStatus(connected){
+  const st=document.getElementById('ollama-status');if(!st)return;
+  if(connected){st.className='connected';st.innerHTML='<span class="dot"></span> Ollama Connected';}
+  else{st.className='error';st.innerHTML='<span class="dot"></span> Ollama Offline — run `ollama serve`';}
+}
+function autoFillModel(){
+  const inp=document.getElementById('ollama-model-input');if(!inp||!_ollamaModels.length)return;
+  const cur=inp.value.trim();
+  if(_ollamaModels.includes(cur))return; // their choice is valid, leave it
+  const pref=_ollamaModels.find(m=>/^llama3/i.test(m))||_ollamaModels.find(m=>/llama/i.test(m))||_ollamaModels[0];
+  if(pref&&(!cur||cur==='llama3'))inp.value=pref;
+}
+async function ollamaTick(){
+  const ok=await probeOllama();
+  setOllamaStatus(ok);
+  const h=document.getElementById('ollama-setup-hint');
+  if(ok){autoFillModel();if(h)h.innerHTML=_ollamaModels.length?('🟢 Connected · '+_ollamaModels.length+' model(s) detected'):'🟢 Connected';}
+  else if(h){h.innerHTML='Waiting for Ollama… run <code style="color:var(--text-dim)">ollama serve</code>';}
+}
+function startOllamaAutoConnect(){ollamaTick();clearInterval(window._ollamaInt);window._ollamaInt=setInterval(ollamaTick,5000);}
+async function checkOllama(){const ok=await probeOllama();setOllamaStatus(ok);return ok;}
 
 // ═══════════ CHARACTERS ═══════════
 function buildCharList(){
@@ -1355,7 +1377,7 @@ async function sendPretrialMsg(){
   const sys=`You are running the pre-trial conference for ${CASE.title}. User is ${S.role.toUpperCase()} attorney. You play ${aiRole.toUpperCase()} attorney AND the JUDGE. Handle pretrial motions, stipulation discussions, and procedural questions realistically. The 10 case stipulations are: (1) Cypress County has jurisdiction. (2) All exhibits are authentic. (3) Kody Maddox died ~2:41 a.m. Feb 3, 2025 from car explosion — not disputed. (4) First 911 call at 2:42 a.m. (5) Evidence chain of custody not in dispute. (6) Affidavits made under oath. (7) Victor Sloane not charged. (8) Digital forensic terms (spoofing, IMEI, etc.) are legitimate concepts. (9) Fertilizer is commercially available ammonium nitrate — NOT confirmed as used in device. (10) All witnesses may acknowledge Exhibit 11 is a picture of Kody Maddox. Start responses with [JUDGE] or [${aiRole.toUpperCase()} ATTORNEY].`;
   S.pretrialHistory.push({role:'user',content:text});
   try{
-    const resp=await fetch('http://localhost:11434/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:S.ollamaModel,stream:false,messages:[{role:'system',content:sys},...S.pretrialHistory]})});
+    const resp=await fetch('http://localhost:11434/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:S.ollamaModel,stream:false,options:{num_predict:280,temperature:0.7},messages:[{role:'system',content:sys},...S.pretrialHistory]})});
     const data=await resp.json();
     const answer=data.message?.content||'[No response]';
     S.pretrialHistory.push({role:'assistant',content:answer});
@@ -1448,12 +1470,15 @@ ${curW?('WITNESS ON STAND: '+curW.name+' — '+curW.bio):''}
 DIFFICULTY: ${S.diff==='competitive' ? 'Competitive Y&G: object to leading on direct (Rule 611), hearsay (802), lack of personal knowledge (602), speculation (701), improper expert (702), relevance (402), asked-and-answered (611). Sharp cross. Challenge credibility.' : 'Beginner: relaxed on objections, occasional errors.'}
 VERDICT FACTORS: ${CASE.verdictFactors}
 FORMAT: Begin every line with a tag — [JUDGE], [WITNESS: Name], [PROSECUTION ATTORNEY], [DEFENSE ATTORNEY], or [COACHING] (only if the user asks). When you give an attorney question and then a witness answer, put each on its own line with its own tag.
-RULES: Stay in character. Witnesses answer only what is asked (1-3 sentences) and never beyond their affidavit. Judge rules on objections in one sentence. Acknowledge exhibit admissions. Openings/closings: 2-3 paragraphs.`;
+RULES: Stay in character. Be concise and fast — no filler, do not restate the question. Witness answers are 1-2 short sentences, strictly within their affidavit. Objections are one short line. Judge rules on objections in one sentence. Acknowledge exhibit admissions briefly. Openings/closings/rebuttal: 2 short paragraphs max.`;
 }
 function getCurrentWitness(){if(!S.currentWitnessKey)return null;const side=S.currentWitnessKey.charAt(1)==='p'?'prosecution':'defense';const idx=parseInt(S.currentWitnessKey.charAt(2),10);return CASE.witnesses[side]&&CASE.witnesses[side][idx]||null;}
-async function callOllama(userMsg){
+// Cap generated length per phase so replies are short and fast.
+function defaultTokens(){const f=flow();if(!f)return 200;if(f.kind==='direct'||f.kind==='cross')return 170;if(f.kind==='opening'||f.kind==='closing'||f.kind==='rebuttal')return 380;return 200;}
+async function callOllama(userMsg,numPredict){
+  const np=numPredict||defaultTokens();
   const messages=[...S.history,{role:'user',content:userMsg}];
-  const resp=await fetch('http://localhost:11434/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:S.ollamaModel,stream:false,messages:[{role:'system',content:buildSystem()},...messages]})});
+  const resp=await fetch('http://localhost:11434/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:S.ollamaModel,stream:false,options:{num_predict:np,temperature:0.7,top_k:30},messages:[{role:'system',content:buildSystem()},...messages]})});
   if(!resp.ok)throw new Error('Ollama '+resp.status);
   const data=await resp.json();
   return data.message?.content||'[No response]';
@@ -1505,7 +1530,7 @@ async function beginTrial(){
   addEntry('COURT OFFICER','system','All rise. The Honorable Court is now in session. State v. Harper Lynn, Cause No. 25-123456. Be seated.');
   const intro='The trial is beginning. As judge, call the session to order, state the case and all 3 charges (Murder 19.02, Criminal Conspiracy 15.02, Criminal Solicitation 15.03), swear in all witnesses, then invite the '+S.role+' to deliver their opening statement.';
   showTyping();setSpeaking('judge');
-  try{const resp=await callOllama(intro);S.history.push({role:'user',content:intro});S.history.push({role:'assistant',content:resp});parseAndDisplay(resp);}
+  try{const resp=await callOllama(intro,320);S.history.push({role:'user',content:intro});S.history.push({role:'assistant',content:resp});parseAndDisplay(resp);}
   catch(e){hideTyping();addEntry('SYSTEM','system','\u26a0 Could not reach Ollama. Make sure ollama serve is running, then open from http://localhost:8080 (not file://).');document.getElementById('ollama-status').className='error';document.getElementById('ollama-status').innerHTML='<span class="dot"></span> Ollama Offline';}
 }
 async function sendMsg(){const inp=document.getElementById('user-input');const text=inp.value.trim();if(!text||S.loading)return;document.getElementById('coaching-box').style.display='none';inp.value='';inp.style.height='auto';processUserInput(text);}
@@ -1551,14 +1576,14 @@ async function runPhaseTransition(f){
 async function getCoaching(){
   if(S.loading)return;document.getElementById('coaching-box').style.display='none';
   S.loading=true;setButtons(true);showTyping();
-  try{const resp=await callOllama('[COACHING REQUEST] Step outside simulation. Give me specific coaching: what am I doing well, what strategic mistakes to fix, and what Y&G rules should I use right now? Be direct and specific about the case facts.');S.history.push({role:'user',content:'[COACHING]'});S.history.push({role:'assistant',content:resp});parseAndDisplay('[COACHING] '+resp.replace(/^\[[^\]]+\]\s*/i,''));}
+  try{const resp=await callOllama('[COACHING REQUEST] Step outside simulation. Give me specific coaching: what am I doing well, what strategic mistakes to fix, and what Y&G rules should I use right now? Be direct and specific about the case facts.',320);S.history.push({role:'user',content:'[COACHING]'});S.history.push({role:'assistant',content:resp});parseAndDisplay('[COACHING] '+resp.replace(/^\[[^\]]+\]\s*/i,''));}
   catch(e){hideTyping();addEntry('SYSTEM','system','\u26a0 Ollama error.');}
   S.loading=false;setButtons(false);
 }
 async function renderVerdict(){
   S.loading=true;setButtons(true);showTyping();setSpeaking('judge');
   try{
-    const resp=await callOllama('The trial has concluded. As the presiding judge and Y&G scoring official, deliver a COMPLETE EVALUATION of the entire argument with clear section headers and blank lines between sections:\n\nVERDICT — Rule on each of the 3 counts (Count 1 Murder 19.02, Count 2 Conspiracy 15.02, Count 3 Solicitation 15.03): Guilty or Not Guilty, each with 2-3 sentences of reasoning tied to what was actually argued in this trial and the beyond-a-reasonable-doubt standard.\n\nARGUMENT EVALUATION of the '+S.role.toUpperCase()+' attorney (the user) — score each category 1-10 with one specific sentence of justification referencing what they actually did: Opening Statement, Direct Examination, Cross-Examination, Use of Objections, Use of Evidence/Exhibits, Closing Argument.\n\nTOP STRENGTHS — three things the user did well.\n\nAREAS TO IMPROVE — three concrete, actionable suggestions.\n\nOVERALL — a letter grade (A through F) and a one-line summary of the performance.');
+    const resp=await callOllama('The trial has concluded. As the presiding judge and Y&G scoring official, deliver a COMPLETE EVALUATION of the entire argument with clear section headers and blank lines between sections:\n\nVERDICT — Rule on each of the 3 counts (Count 1 Murder 19.02, Count 2 Conspiracy 15.02, Count 3 Solicitation 15.03): Guilty or Not Guilty, each with 2-3 sentences of reasoning tied to what was actually argued in this trial and the beyond-a-reasonable-doubt standard.\n\nARGUMENT EVALUATION of the '+S.role.toUpperCase()+' attorney (the user) — score each category 1-10 with one specific sentence of justification referencing what they actually did: Opening Statement, Direct Examination, Cross-Examination, Use of Objections, Use of Evidence/Exhibits, Closing Argument.\n\nTOP STRENGTHS — three things the user did well.\n\nAREAS TO IMPROVE — three concrete, actionable suggestions.\n\nOVERALL — a letter grade (A through F) and a one-line summary of the performance.',700);
     hideTyping();document.getElementById('verdict-body').textContent=resp.replace(/^\[[^\]]+\]\s*/i,'').trim();document.getElementById('verdict-overlay').style.display='flex';speak(resp.replace(/^\[[^\]]+\]\s*/i,''),'judge');
   }catch(e){hideTyping();addEntry('SYSTEM','system','\u26a0 Ollama error during verdict.');}
   S.loading=false;setButtons(false);
@@ -1829,6 +1854,7 @@ function anyOverlayOpen(){return ['modal-overlay','settings-overlay','pretrial-o
 function closeAllOverlays(){['modal-overlay','settings-overlay','pretrial-overlay','drill-overlay','shortcuts-overlay'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.remove('open');});if(typeof closeTut==='function')closeTut();if(cvOpen)exitCourtroom();}
 function qolInit(){
   loadSetupPrefs();
+  startOllamaAutoConnect();
   if(hasSession()){const rb=document.getElementById('resume-btn');if(rb)rb.style.display='block';}
   const tr=document.getElementById('transcript');
   if(tr)tr.addEventListener('scroll',function(){const nb=this.scrollHeight-this.scrollTop-this.clientHeight<60;const b=document.getElementById('to-latest');if(b)b.classList.toggle('show',!nb&&this.scrollHeight>this.clientHeight+90);});
