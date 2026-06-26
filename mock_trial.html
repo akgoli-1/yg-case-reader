@@ -438,6 +438,34 @@ body.hide-left #rz-left,body.hide-right #rz-right{display:none}
 #drill-feedback b{color:var(--gold)}
 #drill-foot{padding:13px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end}
 #drill-next{font-size:13px;font-weight:700;padding:9px 18px;border-radius:9px;border:none;background:var(--gold);color:#1a1200;cursor:pointer;font-family:'Inter',sans-serif;visibility:hidden}
+
+/* ═══════════ QUALITY OF LIFE ═══════════ */
+.hdr-chip{font-size:11px;font-weight:600;padding:4px 9px;border-radius:8px;border:1px solid var(--border2);color:var(--text-dim);white-space:nowrap}
+#phase-timer.over{color:var(--prosecution);border-color:#5a2a1a}
+#resume-btn{width:100%;margin-top:9px;background:var(--surface2);color:var(--text);border:1px solid var(--gold-dim);font-weight:600;font-size:13px;padding:11px;border-radius:10px;cursor:pointer;font-family:'Inter',sans-serif;transition:background .15s}
+#resume-btn:hover{background:rgba(212,168,67,.08)}
+#transcript-col{position:relative}
+#transcript-bar{display:flex;align-items:center;gap:8px;padding:7px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+#t-search{flex:1;min-width:0;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-size:12px;padding:6px 10px;border-radius:8px;outline:none;font-family:'Inter',sans-serif}
+#t-search:focus{border-color:var(--gold-dim)}
+#transcript-bar .tb-actions{display:flex;gap:5px}
+#transcript-bar .tb-actions button{font-size:11px;font-weight:600;padding:6px 9px;border-radius:7px;border:1px solid var(--border2);background:var(--surface2);color:var(--text-dim);cursor:pointer;font-family:'Inter',sans-serif;transition:all .12s;white-space:nowrap}
+#transcript-bar .tb-actions button:hover{border-color:var(--gold-dim);color:var(--text)}
+#transcript .t-text{font-size:calc(15px * var(--tscale,1))}
+#to-latest{display:none;position:absolute;bottom:94px;left:50%;transform:translateX(-50%);z-index:8;font-size:11px;font-weight:700;padding:6px 13px;border-radius:20px;border:1px solid var(--gold-dim);background:var(--surface);color:var(--gold);cursor:pointer;font-family:'Inter',sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}
+#to-latest.show{display:block}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(16px);z-index:400;background:var(--surface3);border:1px solid var(--border2);color:var(--text);font-size:13px;font-weight:600;padding:10px 18px;border-radius:10px;box-shadow:0 10px 34px rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#shortcuts-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:165;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)}
+#shortcuts-overlay.open{display:flex}
+#shortcuts-card{background:var(--surface);border:1px solid var(--border2);border-radius:14px;max-width:460px;width:100%;box-shadow:0 24px 70px rgba(0,0,0,.6)}
+#shortcuts-card .sc-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}
+#shortcuts-card .sc-title{font-family:'EB Garamond',serif;font-size:20px;color:var(--gold)}
+#shortcuts-card .sc-head button{background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer}
+.sc-body{padding:15px 18px;display:grid;grid-template-columns:1fr 1fr;gap:9px 18px}
+.sc-body>div{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-dim)}
+kbd{font-family:'Inter',sans-serif;font-size:10px;font-weight:700;background:var(--surface2);border:1px solid var(--border2);border-bottom-width:2px;border-radius:5px;padding:2px 6px;color:var(--text)}
+.sc-foot{padding:11px 18px;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted)}
 </style>
 </head>
 <body>
@@ -478,6 +506,7 @@ body.hide-left #rz-left,body.hide-right #rz-right{display:none}
       <span style="font-size:11px;color:var(--text-muted)">Run <code style="color:var(--text-dim)">ollama serve</code> first</span>
     </div>
     <button id="start-btn" onclick="startTrial()">Call the Court to Order →</button>
+    <button id="resume-btn" onclick="resumeSession()" style="display:none">↩ Resume your last trial</button>
   </div>
 </div>
 
@@ -489,8 +518,10 @@ body.hide-left #rz-left,body.hide-right #rz-right{display:none}
     <button class="hdr-toggle" id="tg-left" onclick="togglePanel('left')" title="Show or hide the left panel (courtroom, witness, notes)">◧ Left</button>
     <button class="hdr-toggle" id="tg-right" onclick="togglePanel('right')" title="Show or hide the right panel (objections, evidence)">Right ◨</button>
     <button class="hdr-toggle gear" id="btn-settings" onclick="openSettings()" title="Settings — tutorials & objection training">⚙</button>
+    <button class="hdr-toggle" id="btn-keys" onclick="openShortcuts()" title="Keyboard shortcuts (press ?)">⌨</button>
+    <div id="phase-timer" class="hdr-chip" title="Time on this phase, with the Y&G target">⏱ 0:00</div>
     <div id="tts-control">
-      <span style="font-size:10px">🔊</span>
+      <span style="font-size:11px;cursor:pointer" onclick="stopVoice()" title="Click to stop the current voice (Esc)">🔊</span>
       <input type="range" id="tts-speed" min="0.5" max="3" step="0.1" value="1.0" oninput="updateTTSLabel()" title="Speech speed — drag any time, even while a voice is talking (0.5×–3.0×)">
       <span id="tts-label">1.0×</span>
     </div>
@@ -565,9 +596,19 @@ body.hide-left #rz-left,body.hide-right #rz-right{display:none}
   <!-- CENTER -->
   <div id="transcript-wrap">
     <div id="transcript-col">
+      <div id="transcript-bar">
+        <input id="t-search" placeholder="Search transcript…  ( / )" oninput="searchTranscript(this.value)">
+        <div class="tb-actions">
+          <button onclick="setTextScale(-1)" title="Smaller transcript text">A−</button>
+          <button onclick="setTextScale(1)" title="Larger transcript text">A+</button>
+          <button onclick="copyTranscript()" title="Copy the whole transcript">⧉ Copy</button>
+          <button onclick="exportTranscript()" title="Download the transcript as a .txt file">⤓ Export</button>
+        </div>
+      </div>
       <div id="coaching-box"></div>
       <div id="spotter-hint"></div>
       <div id="transcript"></div>
+      <button id="to-latest" onclick="scrollLatest()" title="Jump to the latest line">↓ Latest</button>
       <!-- INPUT — lives with the transcript so it moves & resizes together -->
       <div id="input-area">
         <div id="action-row">
@@ -710,6 +751,28 @@ body.hide-left #rz-left,body.hide-right #rz-right{display:none}
     <div id="cv-figures"></div>
   </div>
 </div>
+
+<!-- SHORTCUTS -->
+<div id="shortcuts-overlay" onclick="if(event.target===this)closeShortcuts()">
+  <div id="shortcuts-card">
+    <div class="sc-head"><div class="sc-title">⌨ Keyboard Shortcuts</div><button onclick="closeShortcuts()">✕</button></div>
+    <div class="sc-body">
+      <div><kbd>Ctrl</kbd><kbd>↵</kbd><span>Send statement</span></div>
+      <div><kbd>O</kbd><span>Objection</span></div>
+      <div><kbd>N</kbd><span>Next phase</span></div>
+      <div><kbd>C</kbd><span>Coaching</span></div>
+      <div><kbd>M</kbd><span>Toggle mic</span></div>
+      <div><kbd>K</kbd><span>Courtroom view</span></div>
+      <div><kbd>D</kbd><span>Documents</span></div>
+      <div><kbd>R</kbd><span>Rules &amp; objections</span></div>
+      <div><kbd>/</kbd><span>Search transcript</span></div>
+      <div><kbd>Esc</kbd><span>Close / stop voice</span></div>
+      <div><kbd>?</kbd><span>This help</span></div>
+    </div>
+    <div class="sc-foot">Tip: click any phase in the top bar to skip there and practice it.</div>
+  </div>
+</div>
+<div id="toast"></div>
 
 <!-- RULES / EVIDENCE MODAL -->
 <div id="modal-overlay" onclick="if(event.target===this)closeModal()">
@@ -897,9 +960,10 @@ function sel(el){document.querySelectorAll(`[data-g="${el.dataset.g}"]`).forEach
 function getv(g){return document.querySelector(`[data-g="${g}"].sel`)?.dataset.v;}
 async function startTrial(){
   S.role=getv('role');S.diff=getv('diff');S.ollamaModel=document.getElementById('ollama-model-input').value.trim()||'llama3';
+  saveSetupPrefs();clearSession();
   CASE.evidence.forEach(e=>{S.evidenceState[e.id]='pending';});
   document.getElementById('setup-screen').style.display='none';
-  buildCharList();buildEvidenceList();buildQuickObj();buildDocTabs();initNotes();loadSettings();loadLayout();bindPhaseSkip();initPanelResizers();updatePhaseUI();enableButtons();
+  buildCharList();buildEvidenceList();buildQuickObj();buildDocTabs();initNotes();loadSettings();loadLayout();bindPhaseSkip();initPanelResizers();applyTextScale();startTimer();updatePhaseUI();enableButtons();
   tutorial('welcome',null,'Welcome to your trial','You are the '+S.role+'. Type or click 🎤 Speak to make your statements. Object using the buttons or the chips on the right. Open 🏛 Courtroom for a full-screen view with speech bubbles, and ⚙ Settings to toggle tutorials and the objection-training Spotter.');
   await checkOllama();
   await beginTrial();
@@ -1095,6 +1159,7 @@ function updatePhaseUI(){
   const examPhase=/^(direct|cross)/.test(S.phase);
   document.querySelectorAll('.qobj-chip').forEach(c=>c.disabled=!examPhase);
   renderWitnessCard();
+  if(window._tphase!==S.phase){window._tphase=S.phase;phaseStart=Date.now();if(typeof tickTimer==='function')tickTimer();}
 }
 function enableButtons(){['btn-obj','btn-next','btn-coach','btn-mic','btn-court','btn-docs','btn-rules','btn-pretrial','send-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});}
 function setButtons(d){['btn-obj','btn-next','btn-coach','btn-mic','btn-rules','btn-pretrial','send-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=d;});}
@@ -1102,10 +1167,13 @@ function setButtons(d){['btn-obj','btn-next','btn-coach','btn-mic','btn-rules','
 // ═══════════ TRANSCRIPT ═══════════
 function addEntry(label,cssRole,text){
   const t=document.getElementById('transcript');
+  const nearBottom=t.scrollHeight-t.scrollTop-t.clientHeight<90;
   const div=document.createElement('div');div.className='t-entry';
   div.innerHTML=`<div class="t-speaker ${cssRole}">${label}</div><div class="t-text ${cssRole}">${text}</div>`;
-  t.appendChild(div);t.scrollTop=t.scrollHeight;
+  t.appendChild(div);
+  if(nearBottom)t.scrollTop=t.scrollHeight;else{const b=document.getElementById('to-latest');if(b)b.classList.add('show');}
   if(cssRole!=='system')cvSpeak(cssRole,text,label);
+  if(typeof transcriptLog!=='undefined'){transcriptLog.push({label,cssRole,text});scheduleSave();}
 }
 let typingEl=null;
 function showTyping(){hideTyping();const t=document.getElementById('transcript');typingEl=document.createElement('div');typingEl.className='t-entry';typingEl.innerHTML=`<div class="t-speaker system">…</div><div class="typing-dots"><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></div>`;t.appendChild(typingEl);t.scrollTop=t.scrollHeight;}
@@ -1382,6 +1450,64 @@ function answerDrill(btn,choice){
   updateDrillScore();
 }
 function updateDrillScore(){const e=document.getElementById('drill-score');if(e)e.textContent='Score: '+drillScore+'/'+drillTotal;}
+
+// ═══════════ QUALITY-OF-LIFE ═══════════
+let transcriptLog=[],_saveT=null,textScale=1,timerInt=null,phaseStart=Date.now();
+function toast(msg,ms){const t=document.getElementById('toast');if(!t)return;t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),ms||2200);}
+function scheduleSave(){clearTimeout(_saveT);_saveT=setTimeout(saveSession,800);}
+function saveSession(){try{localStorage.setItem('mt_session',JSON.stringify({role:S.role,diff:S.diff,model:S.ollamaModel,phase:S.phase,currentWitnessKey:S.currentWitnessKey,history:S.history,evidenceState:S.evidenceState,log:transcriptLog}));}catch(e){}}
+function hasSession(){try{return !!localStorage.getItem('mt_session');}catch(e){return false;}}
+function clearSession(){try{localStorage.removeItem('mt_session');}catch(e){}}
+function resumeSession(){
+  let d;try{d=JSON.parse(localStorage.getItem('mt_session')||'null');}catch(e){}
+  if(!d){toast('No saved trial found');return;}
+  S.role=d.role;S.diff=d.diff;S.ollamaModel=d.model;S.phase=d.phase;S.currentWitnessKey=d.currentWitnessKey;S.history=d.history||[];S.evidenceState=d.evidenceState||{};
+  document.getElementById('setup-screen').style.display='none';
+  buildCharList();buildEvidenceList();buildQuickObj();buildDocTabs();initNotes();loadSettings();loadLayout();bindPhaseSkip();initPanelResizers();enableButtons();applyTextScale();startTimer();
+  Object.keys(S.evidenceState).forEach(id=>{if(S.evidenceState[id]!=='pending')updateEvidence(id,S.evidenceState[id]);});
+  transcriptLog=[];(d.log||[]).forEach(e=>addEntry(e.label,e.cssRole,e.text));
+  updatePhaseUI();checkOllama();
+  toast('Resumed your trial');
+}
+function loadSetupPrefs(){try{const p=JSON.parse(localStorage.getItem('mt_setup')||'{}');if(p.role)document.querySelectorAll('[data-g="role"]').forEach(e=>e.classList.toggle('sel',e.dataset.v===p.role));if(p.diff)document.querySelectorAll('[data-g="diff"]').forEach(e=>e.classList.toggle('sel',e.dataset.v===p.diff));if(p.model){const m=document.getElementById('ollama-model-input');if(m)m.value=p.model;}}catch(e){}}
+function saveSetupPrefs(){try{localStorage.setItem('mt_setup',JSON.stringify({role:S.role,diff:S.diff,model:S.ollamaModel}));}catch(e){}}
+// transcript tools
+function searchTranscript(q){q=(q||'').trim().toLowerCase();document.querySelectorAll('#transcript .t-entry').forEach(en=>{en.style.display=(!q||en.textContent.toLowerCase().includes(q))?'':'none';});}
+function applyTextScale(){try{textScale=parseFloat(localStorage.getItem('mt_tscale'))||1;}catch(e){textScale=1;}const t=document.getElementById('transcript');if(t)t.style.setProperty('--tscale',textScale);}
+function setTextScale(dir){textScale=Math.max(.8,Math.min(1.7,Math.round((textScale+dir*0.1)*10)/10));document.getElementById('transcript').style.setProperty('--tscale',textScale);try{localStorage.setItem('mt_tscale',textScale);}catch(e){}toast('Transcript text '+Math.round(textScale*100)+'%');}
+function transcriptText(){return transcriptLog.map(e=>e.label+': '+e.text).join('\n\n');}
+function exportTranscript(){if(!transcriptLog.length){toast('Nothing to export yet');return;}const blob=new Blob(['State v. Harper Lynn — Mock Trial Transcript\n\n'+transcriptText()],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mock-trial-transcript.txt';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500);toast('Transcript downloaded');}
+function copyTranscript(){if(!transcriptLog.length){toast('Nothing to copy yet');return;}const txt=transcriptText();if(navigator.clipboard){navigator.clipboard.writeText(txt).then(()=>toast('Transcript copied')).catch(()=>toast('Copy blocked by browser'));}else toast('Clipboard unavailable');}
+function scrollLatest(){const t=document.getElementById('transcript');t.scrollTop=t.scrollHeight;const b=document.getElementById('to-latest');if(b)b.classList.remove('show');}
+// voice + timer
+function stopVoice(){try{window.speechSynthesis.cancel();}catch(e){}_spkActive=false;setSpeaking(null);}
+const PHASE_LIMIT={opening:120,direct1:360,direct2:360,direct3:360,cross1:300,cross2:300,cross3:300,closing:180,verdict:240};
+function startTimer(){phaseStart=Date.now();window._tphase=S.phase;if(timerInt)clearInterval(timerInt);timerInt=setInterval(tickTimer,1000);tickTimer();}
+function tickTimer(){const el=document.getElementById('phase-timer');if(!el)return;const s=Math.max(0,Math.floor((Date.now()-phaseStart)/1000));const lim=PHASE_LIMIT[S.phase]||0;const fmt=x=>Math.floor(x/60)+':'+String(x%60).padStart(2,'0');el.textContent='⏱ '+fmt(s)+(lim?(' / '+fmt(lim)):'');el.classList.toggle('over',!!lim&&s>lim);}
+// shortcuts
+function openShortcuts(){document.getElementById('shortcuts-overlay').classList.add('open');}
+function closeShortcuts(){document.getElementById('shortcuts-overlay').classList.remove('open');}
+function anyOverlayOpen(){return ['modal-overlay','settings-overlay','pretrial-overlay','drill-overlay','shortcuts-overlay'].some(id=>{const e=document.getElementById(id);return e&&e.classList.contains('open');})||cvOpen;}
+function closeAllOverlays(){['modal-overlay','settings-overlay','pretrial-overlay','drill-overlay','shortcuts-overlay'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.remove('open');});if(typeof closeTut==='function')closeTut();if(cvOpen)exitCourtroom();}
+function qolInit(){
+  loadSetupPrefs();
+  if(hasSession()){const rb=document.getElementById('resume-btn');if(rb)rb.style.display='block';}
+  const tr=document.getElementById('transcript');
+  if(tr)tr.addEventListener('scroll',function(){const nb=this.scrollHeight-this.scrollTop-this.clientHeight<60;const b=document.getElementById('to-latest');if(b)b.classList.toggle('show',!nb&&this.scrollHeight>this.clientHeight+90);});
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){closeAllOverlays();stopVoice();return;}
+    if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){const sb=document.getElementById('send-btn');if(sb&&!sb.disabled){e.preventDefault();sendMsg();}return;}
+    const tag=(document.activeElement&&document.activeElement.tagName)||'';
+    if(tag==='INPUT'||tag==='TEXTAREA')return;
+    if(e.key==='?'){e.preventDefault();openShortcuts();return;}
+    if(anyOverlayOpen())return;
+    const ob=document.getElementById('btn-obj');if(!ob||ob.disabled)return;
+    if(e.key==='/'){e.preventDefault();const s=document.getElementById('t-search');if(s)s.focus();return;}
+    const map={o:sendObjection,n:nextPhase,c:getCoaching,m:toggleMic,d:toggleSplit,r:()=>openModal('rules'),k:()=>{cvOpen?exitCourtroom():enterCourtroom();}};
+    const fn=map[e.key.toLowerCase()];if(fn){e.preventDefault();fn();}
+  });
+}
+qolInit();
 
 // ═══════════ TUTORIALS (coach-marks) ═══════════
 function tutSeen(k){try{return (localStorage.getItem('mt_tut')||'').split(',').includes(k);}catch(e){return false;}}
