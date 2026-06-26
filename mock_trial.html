@@ -351,6 +351,93 @@ body.hide-right #right-panel{display:none}
 .cv-bubble .cv-sp{display:block;font-family:'Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:5px}
 .cv-jury{display:flex;gap:2px}
 .cv-jury svg.cv-person{width:22px;height:28px;stroke-width:2.4}
+
+/* ═══════════ CUSTOMIZE LAYOUT ═══════════ */
+.set-section-label{margin:14px 2px 9px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);border-top:1px solid var(--border);padding-top:14px}
+#layout-list{display:grid;grid-template-columns:1fr 1fr;gap:3px 14px}
+.lay-row{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--text-dim);padding:4px 2px;cursor:pointer;user-select:none}
+.lay-row:hover{color:var(--text)}
+.lay-row input{width:15px;height:15px;accent-color:var(--gold);cursor:pointer;flex-shrink:0}
+body.hide-courtroom #courtroom-svg-wrap,
+body.hide-witness #witness-section,
+body.hide-phaseguide #phaseguide-section,
+body.hide-speaking #speaking-section,
+body.hide-notes #notes-section,
+body.hide-quickobj #quick-obj-section,
+body.hide-evidence #evidence-section,
+body.hide-objlog #objlog-section,
+body.hide-tts #tts-control,
+body.hide-savehint #save-hint{display:none!important}
+
+/* ═══════════ CALM / SLEEK PASS (less stimulation, more focus) ═══════════ */
+:root{--prosecution:#cf7058;--defense:#5f95cc;--judge:#a982cf;--witness:#57ad79}
+body{background:#0c0c0e}
+/* quieter chrome: lighter labels, flatter surfaces, fewer glows */
+.panel-label{color:var(--text-muted);font-weight:600}
+#header{box-shadow:none;border-bottom:1px solid var(--border);background:#101013}
+#input-area{box-shadow:none}
+.t-text{box-shadow:none}
+#save-hint{opacity:.65}
+.hdr-toggle{background:transparent}
+/* objection chips: neutral by default, colour only on hover (the wall of red was the loudest thing) */
+.qobj-chip{color:var(--text-dim);border-color:var(--border2);background:transparent;font-weight:500}
+.qobj-chip:hover{color:#cf7058;border-color:#4a3330;background:rgba(207,112,88,.07)}
+/* action toolbar: uniform, calm; keep subtle colour cue in the text only */
+.act-btn{border-color:var(--border2)!important;background:transparent!important;font-weight:500;letter-spacing:.04em}
+.act-btn:hover:not(:disabled){background:rgba(255,255,255,.035)!important;border-color:var(--border2)!important}
+.act-btn.mic.recording{background:rgba(255,68,68,.12)!important;border-color:#aa3333!important;color:#ff6b6b!important}
+.act-btn.docs.active{background:rgba(143,212,196,.13)!important;border-color:#3a6a5f!important;color:#aef0e0!important}
+/* softer speaking highlight in the side list */
+.char-card.speaking{box-shadow:none;background:rgba(212,168,67,.06)}
+.char-card.speaking .char-avatar{border-color:var(--gold-dim)}
+#send-btn{box-shadow:none}#send-btn:hover{box-shadow:none;transform:translateY(-1px)}
+.evidence-item:hover{transform:none;background:rgba(255,255,255,.03)}
+.phase-track,#phase-track{background:#101013}
+
+/* ═══════════ DRAGGABLE PANEL RESIZERS ═══════════ */
+.panel-resizer{width:7px;flex-shrink:0;cursor:col-resize;background:transparent;align-self:stretch;position:relative;transition:background .15s}
+.panel-resizer::before{content:'';position:absolute;inset:0 2px;border-radius:3px;background:transparent;transition:background .15s}
+.panel-resizer:hover::before,.panel-resizer.dragging::before{background:var(--gold-dim)}
+body.hide-left #rz-left,body.hide-right #rz-right{display:none}
+
+/* ═══════════ PREMIUM POLISH ═══════════ */
+#phase-track .pt-step{cursor:pointer;border-radius:7px 7px 0 0;transition:color .15s,background .15s,border-color .2s}
+#phase-track .pt-step:hover{color:var(--text);background:rgba(255,255,255,.03)}
+#modal-overlay,#settings-overlay,#pretrial-overlay,#verdict-overlay,#drill-overlay{backdrop-filter:blur(3px)}
+#modal-card,#settings-card,#pretrial-card,#verdict-card,#drill-card{box-shadow:0 24px 70px rgba(0,0,0,.6)}
+.panel-section{border-bottom:1px solid var(--border)}
+#left-panel,#right-panel{transition:none}
+::selection{background:rgba(212,168,67,.25)}
+
+/* practice buttons in settings */
+#practice-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.prac-btn{font-size:12px;font-weight:600;padding:10px;border-radius:9px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);cursor:pointer;font-family:'Inter',sans-serif;transition:all .12s;text-align:left}
+.prac-btn:hover{border-color:var(--gold-dim);background:rgba(212,168,67,.06)}
+
+/* ═══════════ OBJECTION DRILL ═══════════ */
+#drill-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:165;align-items:center;justify-content:center;padding:20px}
+#drill-overlay.open{display:flex}
+#drill-card{background:var(--surface);border:1px solid var(--border2);border-radius:16px;max-width:560px;width:100%;display:flex;flex-direction:column;max-height:88vh}
+#drill-head{display:flex;align-items:center;justify-content:space-between;padding:15px 20px;border-bottom:1px solid var(--border)}
+#drill-head .dh-title{font-family:'EB Garamond',serif;font-size:21px;color:var(--gold)}
+#drill-score{font-size:12px;font-weight:700;color:var(--text-dim);background:var(--surface2);padding:4px 10px;border-radius:20px}
+#drill-body{padding:18px 20px;overflow-y:auto}
+.drill-q{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:12px}
+#drill-prompt{font-family:'EB Garamond',serif;font-size:17px;line-height:1.55;color:var(--text);background:var(--surface2);border-left:3px solid var(--gold-dim);border-radius:6px;padding:13px 16px;margin-bottom:16px}
+#drill-prompt .d-sp{display:block;font-family:'Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:6px}
+#drill-options{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.d-opt{font-size:12.5px;font-weight:600;padding:10px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--surface2);color:var(--text-dim);cursor:pointer;font-family:'Inter',sans-serif;transition:all .12s;text-align:left}
+.d-opt:hover:not(:disabled){border-color:var(--gold-dim);color:var(--text)}
+.d-opt:disabled{cursor:default}
+.d-opt.right{border-color:var(--witness);background:rgba(87,173,121,.16);color:#9fe0bb}
+.d-opt.wrong{border-color:var(--prosecution);background:rgba(207,112,88,.16);color:#ffb59f}
+#drill-feedback{margin-top:14px;font-size:13px;line-height:1.6;display:none}
+#drill-feedback.good,#drill-feedback.bad{display:block;padding:11px 14px;border-radius:9px}
+#drill-feedback.good{background:rgba(87,173,121,.1);border:1px solid #2a5a38;color:#bfe9cf}
+#drill-feedback.bad{background:rgba(207,112,88,.1);border:1px solid #5a2a1a;color:#ffcdbf}
+#drill-feedback b{color:var(--gold)}
+#drill-foot{padding:13px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end}
+#drill-next{font-size:13px;font-weight:700;padding:9px 18px;border-radius:9px;border:none;background:var(--gold);color:#1a1200;cursor:pointer;font-family:'Inter',sans-serif;visibility:hidden}
 </style>
 </head>
 <body>
@@ -460,11 +547,11 @@ body.hide-right #right-panel{display:none}
       <div class="panel-label">⚖ Witness on Stand</div>
       <div id="witness-card"></div>
     </div>
-    <div class="panel-section">
+    <div class="panel-section" id="phaseguide-section">
       <div class="panel-label">Phase Guide</div>
       <div style="font-size:11px;color:var(--text-dim);line-height:1.6" id="phase-guide">—</div>
     </div>
-    <div class="panel-section">
+    <div class="panel-section" id="speaking-section">
       <div class="panel-label">Speaking</div>
       <div id="char-list"></div>
     </div>
@@ -474,6 +561,7 @@ body.hide-right #right-panel{display:none}
     </div>
   </div>
 
+  <div class="panel-resizer" id="rz-left" title="Drag to resize the left panel"></div>
   <!-- CENTER -->
   <div id="transcript-wrap">
     <div id="transcript-col">
@@ -511,6 +599,7 @@ body.hide-right #right-panel{display:none}
     </div>
   </div>
 
+  <div class="panel-resizer" id="rz-right" title="Drag to resize the right panel"></div>
   <!-- RIGHT -->
   <div id="right-panel">
     <div class="panel-section" id="quick-obj-section">
@@ -518,11 +607,11 @@ body.hide-right #right-panel{display:none}
       <div id="quick-obj"></div>
       <div style="font-size:9px;color:var(--text-muted);margin-top:5px;line-height:1.4">Hover a chip for the full phrasing. Use during examination — not during opening/closing.</div>
     </div>
-    <div class="panel-section">
+    <div class="panel-section" id="evidence-section">
       <div class="panel-label" style="display:flex;justify-content:space-between;align-items:center;gap:6px">Evidence <button onclick="openDoc('exhibits')" title="Open the real Exhibits PDF in split view" style="font-size:9px;font-weight:700;letter-spacing:.04em;padding:3px 7px;border-radius:7px;border:1px solid #2a5a4f;background:rgba(143,212,196,.08);color:#8fd4c4;cursor:pointer;font-family:'Inter',sans-serif">📄 PDF</button></div>
       <div id="evidence-list"></div>
     </div>
-    <div class="panel-section">
+    <div class="panel-section" id="objlog-section">
       <div class="panel-label">Objections Log</div>
       <div id="obj-log"></div>
     </div>
@@ -537,6 +626,37 @@ body.hide-right #right-panel{display:none}
       <label class="set-row"><input type="checkbox" id="set-tutorials" onchange="saveSettings()"><div><div class="st">Tutorials &amp; tips</div><div class="sd">Show a short coach-mark the first time you reach a new feature. Turn off once you know your way around.</div></div></label>
       <label class="set-row"><input type="checkbox" id="set-spotter" onchange="saveSettings()"><div><div class="st">🎯 Objection Spotter (training)</div><div class="sd">When the other side says something objectionable, flag the moment and pulse the matching objection chip — so you learn to pattern-recognize hearsay, leading, speculation, and more.</div></div></label>
       <label class="set-row"><input type="checkbox" id="set-autoread" onchange="saveSettings()"><div><div class="st">🔊 Read responses aloud</div><div class="sd">Speak each line in the character voices. Turn off for a quiet, text-only trial.</div></div></label>
+      <div class="set-section-label">Show / hide elements — build the view you want</div>
+      <div id="layout-list"></div>
+      <div class="set-section-label">Practice &amp; test features</div>
+      <div id="practice-grid">
+        <button class="prac-btn" onclick="closeSettings();startDrill()">🎯 Objection Drill</button>
+        <button class="prac-btn" onclick="closeSettings();enterCourtroom()">🏛 Courtroom view</button>
+        <button class="prac-btn" onclick="closeSettings();openDoc('exhibits')">📑 Documents (split)</button>
+        <button class="prac-btn" onclick="closeSettings();openModal('rules')">📋 Rules &amp; objections</button>
+        <button class="prac-btn" onclick="closeSettings();runSpotter('My neighbor told me Harper was there, and I think she planned it.')">🎯 Demo the Spotter</button>
+        <button class="prac-btn" onclick="resetTutorials()">🎬 Replay tutorials</button>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:8px;line-height:1.5">💡 Tip: click any phase in the top bar to <b>skip there and practice just that part</b>.</div>
+    </div>
+  </div>
+</div>
+
+<!-- OBJECTION DRILL -->
+<div id="drill-overlay" onclick="if(event.target===this)closeDrill()">
+  <div id="drill-card">
+    <div id="drill-head">
+      <div class="dh-title">🎯 Objection Drill</div>
+      <div style="display:flex;align-items:center;gap:12px"><span id="drill-score">Score: 0/0</span><button onclick="closeDrill()" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer">✕</button></div>
+    </div>
+    <div id="drill-body">
+      <div class="drill-q">This is a good time to object — which objection applies?</div>
+      <div id="drill-prompt"></div>
+      <div id="drill-options"></div>
+      <div id="drill-feedback"></div>
+    </div>
+    <div id="drill-foot">
+      <button id="drill-next" onclick="nextDrill()">Next question ▸</button>
     </div>
   </div>
 </div>
@@ -779,7 +899,7 @@ async function startTrial(){
   S.role=getv('role');S.diff=getv('diff');S.ollamaModel=document.getElementById('ollama-model-input').value.trim()||'llama3';
   CASE.evidence.forEach(e=>{S.evidenceState[e.id]='pending';});
   document.getElementById('setup-screen').style.display='none';
-  buildCharList();buildEvidenceList();buildQuickObj();buildDocTabs();initNotes();loadSettings();updatePhaseUI();enableButtons();
+  buildCharList();buildEvidenceList();buildQuickObj();buildDocTabs();initNotes();loadSettings();loadLayout();bindPhaseSkip();initPanelResizers();updatePhaseUI();enableButtons();
   tutorial('welcome',null,'Welcome to your trial','You are the '+S.role+'. Type or click 🎤 Speak to make your statements. Object using the buttons or the chips on the right. Open 🏛 Courtroom for a full-screen view with speech bubbles, and ⚙ Settings to toggle tutorials and the objection-training Spotter.');
   await checkOllama();
   await beginTrial();
@@ -1162,6 +1282,106 @@ function saveSettings(){
 }
 function openSettings(){document.getElementById('settings-overlay').classList.add('open');}
 function closeSettings(){document.getElementById('settings-overlay').classList.remove('open');}
+
+// ═══════════ CUSTOMIZE LAYOUT (add / remove elements) ═══════════
+const WIDGETS=[
+  {k:'courtroom',label:'Courtroom map (left)'},
+  {k:'witness',label:'Witness on Stand (left)'},
+  {k:'phaseguide',label:'Phase Guide (left)'},
+  {k:'speaking',label:'Speaking list (left)'},
+  {k:'notes',label:'My Notes (left)'},
+  {k:'quickobj',label:'Quick Objections (right)'},
+  {k:'evidence',label:'Evidence tracker (right)'},
+  {k:'objlog',label:'Objections Log (right)'},
+  {k:'tts',label:'TTS speed (header)'},
+  {k:'savehint',label:'Ctrl+S hint (header)'}
+];
+let LAYOUT={};
+function loadLayout(){
+  try{LAYOUT=JSON.parse(localStorage.getItem('mt_layout')||'{}');}catch(e){LAYOUT={};}
+  WIDGETS.forEach(w=>document.body.classList.toggle('hide-'+w.k,LAYOUT[w.k]===false));
+  buildLayoutControls();
+}
+function buildLayoutControls(){
+  const c=document.getElementById('layout-list');if(!c)return;
+  c.innerHTML=WIDGETS.map(w=>`<label class="lay-row"><input type="checkbox" ${LAYOUT[w.k]===false?'':'checked'} onchange="toggleWidget('${w.k}',this.checked)"><span>${w.label}</span></label>`).join('');
+}
+function toggleWidget(k,show){LAYOUT[k]=show;document.body.classList.toggle('hide-'+k,!show);try{localStorage.setItem('mt_layout',JSON.stringify(LAYOUT));}catch(e){}}
+function resetTutorials(){try{localStorage.removeItem('mt_tut');}catch(e){}const t=document.getElementById('set-tutorials');if(t)t.checked=true;saveSettings();alert('Tutorials reset — coach-marks will show again as you use each feature.');}
+
+// ═══════════ SKIP TO ANY PHASE (practice) ═══════════
+function bindPhaseSkip(){
+  PT_IDS.forEach((pid,i)=>{const el=document.getElementById(pid);if(!el)return;el.style.cursor='pointer';el.title='Skip to '+PHASES[i]+' to practice this part';el.onclick=()=>jumpToPhase(PHASES[i]);});
+}
+async function jumpToPhase(target){
+  if(S.loading)return;
+  S.phase=target;updatePhaseUI();clearSpotter();
+  addEntry('COURT OFFICER','system','— Skipped to '+target.replace(/(\d)/,' #$1').toUpperCase()+' (practice) —');
+  if(target==='verdict'){await renderVerdict();return;}
+  if(target==='pretrial'){openPretrial();return;}
+  const curW=getCurrentWitness();
+  const prompt='We are skipping directly to the '+target+' phase for focused practice.'+(curW?' The witness on the stand is '+curW.name+'.':'')+' As the judge, briefly set the scene for this phase in one or two sentences and invite the '+S.role+' attorney to proceed.';
+  S.loading=true;setButtons(true);showTyping();setSpeaking('judge');
+  try{const resp=await callOllama(prompt);S.history.push({role:'user',content:prompt});S.history.push({role:'assistant',content:resp});parseAndDisplay(resp);}
+  catch(e){hideTyping();addEntry('SYSTEM','system','⚠ Ollama error.');}
+  S.loading=false;setButtons(false);
+}
+
+// ═══════════ DRAGGABLE PANEL RESIZERS ═══════════
+function initPanelResizers(){
+  setupResizer('rz-left','left-panel','left');
+  setupResizer('rz-right','right-panel','right');
+  try{const w=JSON.parse(localStorage.getItem('mt_pw')||'{}');if(w.left)document.getElementById('left-panel').style.width=w.left+'px';if(w.right)document.getElementById('right-panel').style.width=w.right+'px';}catch(e){}
+}
+function setupResizer(rzId,panelId,side){
+  const rz=document.getElementById(rzId),panel=document.getElementById(panelId),main=document.getElementById('main');if(!rz)return;
+  let dragging=false;
+  rz.addEventListener('pointerdown',e=>{dragging=true;rz.classList.add('dragging');try{rz.setPointerCapture(e.pointerId);}catch(_){}document.body.style.userSelect='none';e.preventDefault();});
+  rz.addEventListener('pointermove',e=>{if(!dragging)return;const r=main.getBoundingClientRect();let w=side==='left'?(e.clientX-r.left):(r.right-e.clientX);w=Math.max(120,Math.min(440,w));panel.style.width=w+'px';});
+  const up=()=>{if(!dragging)return;dragging=false;rz.classList.remove('dragging');document.body.style.userSelect='';try{localStorage.setItem('mt_pw',JSON.stringify({left:parseInt(document.getElementById('left-panel').style.width)||undefined,right:parseInt(document.getElementById('right-panel').style.width)||undefined}));}catch(e){}};
+  rz.addEventListener('pointerup',up);window.addEventListener('pointerup',up);
+}
+
+// ═══════════ OBJECTION DRILL (interactive quiz) ═══════════
+const DRILL_OPTS=['Leading','Hearsay','Speculation','Relevance','Lack of Personal Knowledge','Narrative','Asked & Answered','Compound','Improper Opinion','Character'];
+const DRILL=[
+  {sp:'WITNESS',t:'Well, my neighbor told me that Harper was at the scene that night.',a:'Hearsay',ex:'An out-of-court statement (the neighbor’s) offered to prove Harper was there is hearsay (Rule 802).'},
+  {sp:'DEFENSE ATTORNEY (on direct)',t:'You saw the defendant plant the device, isn’t that correct?',a:'Leading',ex:'On direct, a question that suggests its own answer is leading (Rule 611). “Isn’t that correct?” is the tell.'},
+  {sp:'WITNESS',t:'I think Harper probably planned the whole thing for weeks.',a:'Speculation',ex:'“I think… probably” about something the witness can’t know is speculation / improper opinion (Rule 602, 701).'},
+  {sp:'PROSECUTION ATTORNEY',t:'Tell us everything that happened from the moment you woke up that morning.',a:'Narrative',ex:'An open-ended question inviting a long story calls for a narrative (Rule 611).'},
+  {sp:'WITNESS',t:'Harper has always been a violent, dishonest person.',a:'Character',ex:'Using a person’s character to prove they acted in conformity is improper character evidence (Rule 404).'},
+  {sp:'DEFENSE ATTORNEY',t:'Detective, did you secure the scene, and did you also log the evidence, and interview the neighbors?',a:'Compound',ex:'Several questions packed into one is compound (Rule 611) — the witness can’t answer cleanly.'},
+  {sp:'WITNESS',t:'The lab report must have shown his fingerprints — I’m sure of it.',a:'Speculation',ex:'Guessing about a document not in evidence, with no personal knowledge, is speculation (Rule 602).'},
+  {sp:'PROSECUTION ATTORNEY',t:'You already told us you arrived at 6:30 — but again, what time did you arrive?',a:'Asked & Answered',ex:'Re-asking a question the witness already answered is asked and answered (Rule 611).'},
+  {sp:'WITNESS',t:'Based on what the news reported, the explosion was enormous.',a:'Hearsay',ex:'Relying on the news (an out-of-court statement) for its truth is hearsay; it also lacks personal knowledge.'},
+  {sp:'DEFENSE ATTORNEY',t:'What is the defendant’s favorite color?',a:'Relevance',ex:'It doesn’t make any fact of consequence more or less likely — irrelevant (Rule 401/402).'},
+  {sp:'WITNESS',t:'I never saw the car that night, but it was definitely Harper’s silver sedan.',a:'Lack of Personal Knowledge',ex:'The witness admits they didn’t see it, so they can’t testify to what it was (Rule 602).'},
+  {sp:'WITNESS',t:'In my opinion, the device was clearly built by a professional.',a:'Improper Opinion',ex:'A lay witness can’t give an expert opinion on bomb construction without qualification (Rule 701/702).'}
+];
+let drillIdx=-1,drillScore=0,drillTotal=0,drillAnswered=false;
+function startDrill(){drillScore=0;drillTotal=0;document.getElementById('drill-overlay').classList.add('open');nextDrill();}
+function closeDrill(){document.getElementById('drill-overlay').classList.remove('open');}
+function nextDrill(){
+  drillAnswered=false;
+  let i;do{i=Math.floor(Math.random()*DRILL.length);}while(DRILL.length>1&&i===drillIdx);drillIdx=i;
+  const q=DRILL[i];
+  document.getElementById('drill-prompt').innerHTML=`<span class="d-sp">${q.sp}</span>${q.t}`;
+  const fb=document.getElementById('drill-feedback');fb.className='';fb.innerHTML='';
+  document.getElementById('drill-next').style.visibility='hidden';
+  document.getElementById('drill-options').innerHTML=DRILL_OPTS.map(o=>`<button class="d-opt" onclick="answerDrill(this,'${o.replace(/'/g,"\\'")}')">${o}</button>`).join('');
+  updateDrillScore();
+}
+function answerDrill(btn,choice){
+  if(drillAnswered)return;drillAnswered=true;drillTotal++;
+  const q=DRILL[drillIdx];const correct=choice===q.a;if(correct)drillScore++;
+  document.querySelectorAll('.d-opt').forEach(b=>{b.disabled=true;if(b.textContent===q.a)b.classList.add('right');else if(b===btn)b.classList.add('wrong');});
+  const fb=document.getElementById('drill-feedback');
+  fb.className=correct?'good':'bad';
+  fb.innerHTML=(correct?'✅ Correct — ':'❌ Not quite. The best answer is <b>'+q.a+'</b>. ')+q.ex;
+  document.getElementById('drill-next').style.visibility='visible';
+  updateDrillScore();
+}
+function updateDrillScore(){const e=document.getElementById('drill-score');if(e)e.textContent='Score: '+drillScore+'/'+drillTotal;}
 
 // ═══════════ TUTORIALS (coach-marks) ═══════════
 function tutSeen(k){try{return (localStorage.getItem('mt_tut')||'').split(',').includes(k);}catch(e){return false;}}
