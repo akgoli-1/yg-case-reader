@@ -1287,9 +1287,12 @@ async function startTrial(){
   await beginTrial();
 }
 // ── Ollama auto-connect: poll, auto-detect models, keep status live ──
+// When served over http(s) we go through the local server's /ollama proxy (same origin → no CORS).
+// Only fall back to hitting Ollama directly if the page was opened as a bare file://.
+const OLLAMA=(location.protocol.indexOf('http')===0)?'/ollama':'http://localhost:11434';
 let _ollamaModels=[];
 async function probeOllama(){
-  try{const r=await fetch('http://localhost:11434/api/tags',{signal:AbortSignal.timeout(2500)});if(r.ok){const d=await r.json();_ollamaModels=(d.models||[]).map(m=>m.name);return true;}}catch(e){}
+  try{const r=await fetch(OLLAMA+'/api/tags',{signal:AbortSignal.timeout(2500)});if(r.ok){const d=await r.json();_ollamaModels=(d.models||[]).map(m=>m.name);return true;}}catch(e){}
   return false;
 }
 function setOllamaStatus(connected){
@@ -1477,7 +1480,7 @@ async function sendPretrialMsg(){
   const sys=`You are running the pre-trial conference for ${CASE.title}. User is ${S.role.toUpperCase()} attorney. You play ${aiRole.toUpperCase()} attorney AND the JUDGE. Handle pretrial motions, stipulation discussions, and procedural questions realistically. The 10 case stipulations are: (1) Cypress County has jurisdiction. (2) All exhibits are authentic. (3) Kody Maddox died ~2:41 a.m. Feb 3, 2025 from car explosion — not disputed. (4) First 911 call at 2:42 a.m. (5) Evidence chain of custody not in dispute. (6) Affidavits made under oath. (7) Victor Sloane not charged. (8) Digital forensic terms (spoofing, IMEI, etc.) are legitimate concepts. (9) Fertilizer is commercially available ammonium nitrate — NOT confirmed as used in device. (10) All witnesses may acknowledge Exhibit 11 is a picture of Kody Maddox. Start responses with [JUDGE] or [${aiRole.toUpperCase()} ATTORNEY].`;
   S.pretrialHistory.push({role:'user',content:text});
   try{
-    const resp=await fetch('http://localhost:11434/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:S.ollamaModel,stream:false,options:{num_predict:280,temperature:0.7},messages:[{role:'system',content:sys},...S.pretrialHistory]})});
+    const resp=await fetch(OLLAMA+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:S.ollamaModel,stream:false,options:{num_predict:280,temperature:0.7},messages:[{role:'system',content:sys},...S.pretrialHistory]})});
     const data=await resp.json();
     const answer=data.message?.content||'[No response]';
     S.pretrialHistory.push({role:'assistant',content:answer});
@@ -1577,7 +1580,7 @@ function defaultTokens(){const f=flow();if(!f)return 200;if(f.kind==='direct'||f
 async function callOllama(userMsg,numPredict){
   const np=numPredict||defaultTokens();
   const messages=[...S.history,{role:'user',content:userMsg}];
-  const resp=await fetch('http://localhost:11434/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:S.ollamaModel,stream:false,options:{num_predict:np,temperature:0.7,top_k:30},messages:[{role:'system',content:buildSystem()},...messages]})});
+  const resp=await fetch(OLLAMA+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:S.ollamaModel,stream:false,options:{num_predict:np,temperature:0.7,top_k:30},messages:[{role:'system',content:buildSystem()},...messages]})});
   if(!resp.ok)throw new Error('Ollama '+resp.status);
   const data=await resp.json();
   return data.message?.content||'[No response]';

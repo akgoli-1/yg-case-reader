@@ -20,6 +20,20 @@ const MIME = {
 };
 
 const server = http.createServer((req, res) => {
+  // Reverse-proxy to Ollama so the browser only ever talks to THIS origin (no CORS).
+  // The app fetches /ollama/api/... and we forward it to localhost:11434/api/...
+  if (req.url === '/ollama' || req.url.startsWith('/ollama/')) {
+    const sub = req.url.replace(/^\/ollama/, '') || '/';
+    const proxyReq = http.request(
+      { host: '127.0.0.1', port: 11434, path: sub, method: req.method,
+        headers: { 'Content-Type': req.headers['content-type'] || 'application/json' } },
+      (pr) => { res.writeHead(pr.statusCode || 502, { 'Content-Type': pr.headers['content-type'] || 'application/json', 'Access-Control-Allow-Origin': '*' }); pr.pipe(res); }
+    );
+    proxyReq.on('error', (e) => { res.writeHead(502, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Ollama not reachable: ' + (e.message || e) })); });
+    req.pipe(proxyReq);
+    return;
+  }
+
   let urlPath = decodeURIComponent(req.url.split('?')[0]);
   if (urlPath === '/') urlPath = '/mock_trial.html';
   if (urlPath === '/favicon.ico') { res.writeHead(204); res.end(); return; }
