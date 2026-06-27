@@ -1271,6 +1271,26 @@ const CASE_VERSIONS=[
 ];
 let SCRIPT_VERSION_NAMES=['The Plan','Follow the Money','Means, Motive & Opportunity'];
 function scriptsFor(id){const v=CASE_VERSIONS[S.scriptVersion]||CASE_VERSIONS[0];return v&&v[id];}
+// Real pre-trial conference — scripted, instant (appearances, stipulations, motions).
+const PRETRIAL=[
+  {r:'judge',t:'Be seated. We are on the record in Cause No. 25-123456, the State of Texas versus Harper Lynn — charged with murder under Section 19.02, criminal conspiracy under 15.02, and criminal solicitation under 15.03. Before opening statements, let us settle pre-trial matters. Counsel, your appearances?'},
+  {r:'prosecution',t:'Good morning, your honor. Counsel for the State, ready to proceed.'},
+  {r:'defense',t:'Good morning, your honor. Counsel for the defense, ready.'},
+  {r:'judge',t:'The parties have filed ten stipulations. For the record: Cypress County has jurisdiction; all thirteen exhibits are authentic; Dakota Maddox died at approximately 2:41 a.m. on February 3rd from the vehicle explosion; the first 911 call came at 2:42; chain of custody is not disputed; all affidavits were sworn under oath; Victor Sloane is uncharged and his whereabouts unknown; the digital-forensic terms are accepted as legitimate; the GreenPro fertilizer is commercially available ammonium nitrate, not confirmed as the device material; and every witness may acknowledge Exhibit 11 as a photograph of the victim. Are these agreed?'},
+  {r:'prosecution',t:'So stipulated, your honor.'},
+  {r:'defense',t:'So stipulated.'},
+  {r:'judge',t:'Any pre-trial motions before we begin?'},
+  {r:'defense',t:'No motions at this time, your honor; the defense reserves its objections for trial.'},
+  {r:'prosecution',t:'Nothing from the State, your honor.'},
+  {r:'judge',t:'Very well. The stipulations are entered and the witnesses remain under oath. We will proceed to opening statements. When you are ready, press “Next →” to begin.'}
+];
+function judgeInvite(f,curW){const side=(f.actor||f.examiner);const sn=side==='prosecution'?'the State':'the defense';
+  if(f.kind==='opening')return 'Counsel for '+sn+', you may deliver your opening statement.';
+  if(f.kind==='closing')return 'Counsel for '+sn+', you may present your closing argument.';
+  if(f.kind==='rebuttal')return 'The State may now present its rebuttal.';
+  if(f.kind==='direct')return (curW?curW.name:'The witness')+' has been sworn. Counsel, you may proceed with your direct examination.';
+  if(f.kind==='cross')return 'Counsel, you may cross-examine '+(curW?curW.name:'the witness')+'.';
+  return 'You may proceed, counsel.';}
 
 // ═══════════ SETUP ═══════════
 function sel(el){document.querySelectorAll(`[data-g="${el.dataset.g}"]`).forEach(e=>e.classList.remove('sel'));el.classList.add('sel');}
@@ -1636,12 +1656,10 @@ function parseAndDisplay(text){
 }
 
 // TRIAL FLOW
-async function beginTrial(){
-  addEntry('COURT OFFICER','system','All rise. The Honorable Court is now in session. State v. Harper Lynn, Cause No. 25-123456. Be seated.');
-  const intro='The trial is beginning. As judge, call the session to order, state the case and all 3 charges (Murder 19.02, Criminal Conspiracy 15.02, Criminal Solicitation 15.03), swear in all witnesses, then invite the '+S.role+' to deliver their opening statement.';
-  showTyping();setSpeaking('judge');
-  try{const resp=await callOllama(intro,320);S.history.push({role:'user',content:intro});S.history.push({role:'assistant',content:resp});parseAndDisplay(resp);}
-  catch(e){hideTyping();addEntry('SYSTEM','system','\u26a0 Could not reach Ollama. Make sure ollama serve is running, then open from http://localhost:8080 (not file://).');document.getElementById('ollama-status').className='error';document.getElementById('ollama-status').innerHTML='<span class="dot"></span> Ollama Offline';}
+function beginTrial(){
+  addEntry('COURT OFFICER','system','All rise. The Honorable Court is now in session. State v. Harper Lynn, Cause No. 25-123456.');
+  // Real pre-trial conference, scripted and instant \u2014 no waiting on the model.
+  playScriptSegs(PRETRIAL.map(s=>Object.assign({},s)));
 }
 async function sendMsg(){const inp=document.getElementById('user-input');const text=inp.value.trim();if(!text||S.loading)return;document.getElementById('coaching-box').style.display='none';inp.value='';inp.style.height='auto';processUserInput(text);}
 async function processUserInput(text){
@@ -1658,6 +1676,13 @@ async function processUserInput(text){
       catch(e){hideTyping();addEntry('SYSTEM','system','\u26a0 Ollama error.');}
       S.loading=false;setButtons(false);
     } else { playNextScript(); }
+    return;
+  }
+  // Your own opening/closing/rebuttal: show it + a scripted judge acknowledgement (no model call).
+  const _af=flow();
+  if(_af&&(_af.kind==='opening'||_af.kind==='closing'||_af.kind==='rebuttal')&&_af.actor===S.role){
+    setSpeaking('youatty');addEntry(S.role.toUpperCase()+' ATTORNEY (YOU)','you',text);speak(text,S.role,()=>setSpeaking(null));
+    addEntry('JUDGE','judge','Thank you, counsel.');
     return;
   }
   setSpeaking('youatty');addEntry(S.role.toUpperCase()+' ATTORNEY (YOU)','you',text);speak(text,S.role,()=>setSpeaking(null));
@@ -1704,27 +1729,14 @@ async function nextPhase(){
   if(f.kind==='pretrial'){openPretrial();return;}
   await runPhaseTransition(f);
 }
-async function runPhaseTransition(f){
+function runPhaseTransition(f){
   S.scriptQueue=[];
   const yours=userActive(f);const curW=getCurrentWitness();
   // AI-delivered phases play a pre-written script (no LLM); the AI only rules on objections.
   if(!yours&&scriptsFor(f.id)){playScriptIntro(f);return;}
-  let prompt;
-  if(f.kind==='opening'||f.kind==='closing'||f.kind==='rebuttal'){
-    const kw=f.kind==='rebuttal'?'rebuttal (the final word, responding to the defense closing)':f.kind;
-    prompt=yours
-      ? `It is now the ${f.actor} ${kw}, delivered by the USER. As [JUDGE], invite the ${f.actor} to deliver their ${f.kind} in one sentence.`
-      : `It is now the ${f.actor} ${kw}. Deliver it yourself as [${f.actor.toUpperCase()} ATTORNEY] in 2-3 paragraphs.`;
-  } else {
-    prompt=yours
-      ? `It is now the ${f.kind} of ${curW?curW.name:'the witness'}, conducted by the USER (${f.examiner}). As [JUDGE], note the witness is sworn and invite the ${f.examiner} to proceed, in one sentence.`
-      : `It is now the ${f.kind} of ${curW?curW.name:'the witness'}, conducted by YOU (the ${f.examiner} attorney); the user is opposing counsel and may only object. Begin: ask your first ${f.kind==='cross'?'leading':'open, non-leading'} question as [${f.examiner.toUpperCase()} ATTORNEY] on one line, then give ${curW?curW.name:'the witness'}'s answer as [WITNESS: ${curW?curW.name:''}] on the next line.`;
-  }
-  S.loading=true;setButtons(true);showTyping();setSpeaking('judge');
-  try{const resp=await callOllama(prompt);S.history.push({role:'user',content:prompt});S.history.push({role:'assistant',content:resp});parseAndDisplay(resp);}
-  catch(e){hideTyping();addEntry('SYSTEM','system','\u26a0 Ollama error.');}
+  // For YOUR phases the judge's invitation is scripted \u2014 instant, no waiting on the model.
+  playScriptSegs([{r:'judge',t:judgeInvite(f,curW)}]);
   if(yours&&(f.kind==='direct'||f.kind==='cross'))addEntry('COURT OFFICER','system','Ask '+(curW?curW.name:'the witness')+' as many questions as you need \u2014 click \u201cEnd '+f.kind+' \u2192\u201d only when you\u2019re finished with this witness.');
-  S.loading=false;setButtons(false);
 }
 async function getCoaching(){
   if(S.loading)return;document.getElementById('coaching-box').style.display='none';
