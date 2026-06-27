@@ -693,6 +693,10 @@ body{
       <input id="ollama-model-input" type="text" value="llama3" placeholder="e.g. llama3, mistral">
       <span id="ollama-setup-hint" style="font-size:11px;color:var(--text-muted)">Auto-detecting… run <code style="color:var(--text-dim)">ollama serve</code></span>
     </div>
+    <div id="fast-model-hint" style="font-size:10.5px;color:var(--text-muted);margin-top:5px;line-height:1.6;display:none">
+      ⚡ For faster responses, pull a smaller model: <code style="color:var(--text-dim)">ollama pull llama3.2:3b</code> — 2–4× faster than llama3. Other fast options: <code style="color:var(--text-dim)">phi3:mini</code>, <code style="color:var(--text-dim)">qwen2.5:3b</code>.
+      <span id="fast-model-chips" style="display:inline-flex;gap:5px;flex-wrap:wrap;margin-top:4px"></span>
+    </div>
     <button id="start-btn" onclick="startTrial()">Call the Court to Order →</button>
     <button id="resume-btn" onclick="resumeSession()" style="display:none">↩ Resume your last trial</button>
   </div>
@@ -1320,12 +1324,17 @@ function setOllamaStatus(connected){
   if(connected){st.className='connected';st.innerHTML='<span class="dot"></span> Ollama Connected';}
   else{st.className='error';st.innerHTML='<span class="dot"></span> Ollama Offline — run `ollama serve`';}
 }
+const FAST_MODELS=['llama3.2:3b','llama3.2:1b','phi3:mini','phi3.5:mini','qwen2.5:3b','qwen2.5:0.5b','gemma2:2b','mistral:7b'];
 function autoFillModel(){
   const inp=document.getElementById('ollama-model-input');if(!inp||!_ollamaModels.length)return;
   const cur=inp.value.trim();
-  if(_ollamaModels.includes(cur))return; // their choice is valid, leave it
-  const pref=_ollamaModels.find(m=>/^llama3/i.test(m))||_ollamaModels.find(m=>/llama/i.test(m))||_ollamaModels[0];
-  if(pref&&(!cur||cur==='llama3'))inp.value=pref;
+  if(_ollamaModels.includes(cur)&&cur!=='llama3'){}  // keep their choice
+  else{const pref=_ollamaModels.find(m=>/^llama3\.2/i.test(m))||_ollamaModels.find(m=>/phi3|qwen2\.5|gemma2:2b/i.test(m))||_ollamaModels.find(m=>/^llama3/i.test(m))||_ollamaModels[0];if(pref&&(!cur||cur==='llama3'))inp.value=pref;}
+  // Show installed models as clickable chips + fast-model hint if no fast model installed
+  const chips=document.getElementById('fast-model-chips');
+  if(chips){chips.innerHTML=_ollamaModels.map(m=>{const fast=FAST_MODELS.some(f=>m.startsWith(f.split(':')[0]));return`<button onclick="document.getElementById('ollama-model-input').value='${m}'" style="font-size:9.5px;padding:3px 8px;border-radius:5px;border:1px solid var(--border2);background:var(--surface2);color:${fast?'var(--witness)':'var(--text-dim)'};cursor:pointer;font-family:monospace">${m}${fast?' ⚡':''}</button>`;}).join('');}
+  const hint=document.getElementById('fast-model-hint');
+  if(hint)hint.style.display='block';
 }
 async function ollamaTick(){
   const ok=await probeOllama();
@@ -1500,12 +1509,12 @@ async function sendPretrialMsg(){
   const sys=`You are running the pre-trial conference for ${CASE.title}. User is ${S.role.toUpperCase()} attorney. You play ${aiRole.toUpperCase()} attorney AND the JUDGE. Handle pretrial motions, stipulation discussions, and procedural questions realistically. The 10 case stipulations are: (1) Cypress County has jurisdiction. (2) All exhibits are authentic. (3) Kody Maddox died ~2:41 a.m. Feb 3, 2025 from car explosion — not disputed. (4) First 911 call at 2:42 a.m. (5) Evidence chain of custody not in dispute. (6) Affidavits made under oath. (7) Victor Sloane not charged. (8) Digital forensic terms (spoofing, IMEI, etc.) are legitimate concepts. (9) Fertilizer is commercially available ammonium nitrate — NOT confirmed as used in device. (10) All witnesses may acknowledge Exhibit 11 is a picture of Kody Maddox. Start responses with [JUDGE] or [${aiRole.toUpperCase()} ATTORNEY].`;
   S.pretrialHistory.push({role:'user',content:text});
   try{
-    const resp=await fetch(OLLAMA+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:S.ollamaModel,stream:false,options:{num_predict:280,temperature:0.7},messages:[{role:'system',content:sys},...S.pretrialHistory]})});
-    const data=await resp.json();
-    const answer=data.message?.content||'[No response]';
-    S.pretrialHistory.push({role:'assistant',content:answer});
-    const clean=answer.replace(/^\[[^\]]+\]\s*/i,'').trim();
-    const isJudge=/^\[JUDGE\]/i.test(answer.trim());
+    const resp=await fetch(OLLAMA+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:S.ollamaModel,stream:true,options:{num_predict:280,temperature:0.7},messages:[{role:'system',content:sys},...S.pretrialHistory]})});
+    const reader=resp.body.getReader();const dec=new TextDecoder();let full='';
+    while(true){const{done,value}=await reader.read();if(done)break;for(const ln of dec.decode(value).split('\n')){try{const d=JSON.parse(ln);if(d.message?.content)full+=d.message.content;}catch(_){}}}
+    S.pretrialHistory.push({role:'assistant',content:full});
+    const clean=full.replace(/^\[[^\]]+\]\s*/i,'').trim();
+    const isJudge=/^\[JUDGE\]/i.test(full.trim());
     addPretrialEntry(isJudge?'judge':'opp',isJudge?'JUDGE':`${aiRole.toUpperCase()} ATTORNEY`,clean);
     speak(clean,isJudge?'judge':aiRole);
   }catch(e){addPretrialEntry('judge','SYSTEM','⚠ Ollama error.');}
@@ -1597,13 +1606,34 @@ RULES: Stay in character. Be concise and fast — no filler, do not restate the 
 function getCurrentWitness(){if(!S.currentWitnessKey)return null;const side=S.currentWitnessKey.charAt(1)==='p'?'prosecution':'defense';const idx=parseInt(S.currentWitnessKey.charAt(2),10);return CASE.witnesses[side]&&CASE.witnesses[side][idx]||null;}
 // Cap generated length per phase so replies are short and fast.
 function defaultTokens(){const f=flow();if(!f)return 200;if(f.kind==='direct'||f.kind==='cross')return 170;if(f.kind==='opening'||f.kind==='closing'||f.kind==='rebuttal')return 380;return 200;}
+// Keep only the last 10 messages — the system prompt carries the full case context,
+// so old exchanges just waste tokens and slow generation.
+function trimHistory(){return S.history.slice(-10);}
 async function callOllama(userMsg,numPredict){
   const np=numPredict||defaultTokens();
-  const messages=[...S.history,{role:'user',content:userMsg}];
-  const resp=await fetch(OLLAMA+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:S.ollamaModel,stream:false,options:{num_predict:np,temperature:0.7,top_k:30},messages:[{role:'system',content:buildSystem()},...messages]})});
+  const messages=[...trimHistory(),{role:'user',content:userMsg}];
+  const resp=await fetch(OLLAMA+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:S.ollamaModel,stream:true,options:{num_predict:np,temperature:0.7,top_k:30},messages:[{role:'system',content:buildSystem()},...messages]})});
   if(!resp.ok)throw new Error('Ollama '+resp.status);
-  const data=await resp.json();
-  return data.message?.content||'[No response]';
+  // ── Streaming: text appears live word-by-word; hand the full assembled text to parseAndDisplay ──
+  hideTyping();
+  const t=document.getElementById('transcript');
+  const streamEl=document.createElement('div');
+  streamEl.className='t-entry streaming-bubble';
+  streamEl.innerHTML='<div class="t-avatar">💬</div><div class="t-bubble"><div class="t-text" id="ollama-stream"></div></div>';
+  t.appendChild(streamEl);t.scrollTop=t.scrollHeight;
+  const streamTxt=document.getElementById('ollama-stream');
+  const reader=resp.body.getReader();const dec=new TextDecoder();let full='';
+  try{
+    while(true){
+      const{done,value}=await reader.read();if(done)break;
+      for(const line of dec.decode(value).split('\n')){
+        if(!line.trim())continue;
+        try{const d=JSON.parse(line);if(d.message?.content){full+=d.message.content;streamTxt.textContent=full;t.scrollTop=t.scrollHeight;}}catch(_){}
+      }
+    }
+  }catch(e){console.warn('stream error',e);}
+  streamEl.remove();
+  return full||'[No response]';
 }
 function parseAndDisplay(text){
   hideTyping();
