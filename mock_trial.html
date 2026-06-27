@@ -316,6 +316,8 @@ body.hide-right #right-panel{display:none}
 #settings-body .set-row input{margin-top:2px;width:17px;height:17px;accent-color:var(--gold);cursor:pointer;flex-shrink:0}
 #settings-body .set-row .st{font-weight:600;font-size:13px;color:var(--text)}
 #settings-body .set-row .sd{font-size:11px;color:var(--text-dim);line-height:1.5;margin-top:3px}
+#set-voice{flex:1;min-width:0;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-size:12px;padding:9px 10px;border-radius:8px;font-family:'Inter',sans-serif;outline:none;cursor:pointer}
+#set-voice:focus{border-color:var(--gold-dim)}
 
 /* objection spotter + tutorials */
 #spotter-hint{display:none;margin:0 14px 8px;background:rgba(224,90,58,.1);border:1px solid #5a2a1a;border-radius:10px;padding:9px 12px;font-size:12px;color:#ffb59f;line-height:1.5}
@@ -833,6 +835,12 @@ body{
       <label class="set-row"><input type="checkbox" id="set-tutorials" onchange="saveSettings()"><div><div class="st">Tutorials &amp; tips</div><div class="sd">Show a short coach-mark the first time you reach a new feature. Turn off once you know your way around.</div></div></label>
       <label class="set-row"><input type="checkbox" id="set-spotter" onchange="saveSettings()"><div><div class="st">🎯 Objection Spotter (training)</div><div class="sd">When the other side says something objectionable, flag the moment and pulse the matching objection chip — so you learn to pattern-recognize hearsay, leading, speculation, and more.</div></div></label>
       <label class="set-row"><input type="checkbox" id="set-autoread" onchange="saveSettings()"><div><div class="st">🔊 Read responses aloud</div><div class="sd">Speak each line in the character voices. Turn off for a quiet, text-only trial.</div></div></label>
+      <div class="set-section-label">Voice</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <select id="set-voice" onchange="saveSettings()"></select>
+        <button class="prac-btn" style="flex:0 0 auto;padding:9px 13px" onclick="testVoice()">▶ Test</button>
+      </div>
+      <div style="font-size:11px;color:var(--text-dim);line-height:1.55">For the most lifelike voices, open this page in <b>Microsoft Edge</b> — its free “Natural” neural voices appear here automatically (marked ★). Chrome’s built-in voices are more limited.</div>
       <div class="set-section-label">Show / hide elements — build the view you want</div>
       <div id="layout-list"></div>
       <div class="set-section-label">Practice &amp; test features</div>
@@ -1058,8 +1066,9 @@ const CASE = {
 // ═══════════ TTS ═══════════
 let voices=[], ttsRate=1.0;
 let _spkQueue=[],_spkProfile='judge',_spkOnEnd=null,_spkActive=false,_spkUtt=null;
-window.speechSynthesis.onvoiceschanged=()=>{voices=window.speechSynthesis.getVoices()};
-setTimeout(()=>{voices=window.speechSynthesis.getVoices()},600);
+function _refreshVoices(){voices=window.speechSynthesis.getVoices();if(typeof buildVoiceOptions==='function')buildVoiceOptions();}
+window.speechSynthesis.onvoiceschanged=_refreshVoices;
+setTimeout(_refreshVoices,400);setTimeout(_refreshVoices,1500);
 const VPROF={
   judge:{pitch:.82,hints:['Daniel','Google UK English Male','en-GB']},
   prosecution:{pitch:1.04,hints:['Samantha','Google US English','en-US']},
@@ -1077,7 +1086,25 @@ function updateTTSLabel(){
   // Speech plays in small chunks, so the next chunk automatically uses the new
   // rate — the change is applied live with no cancel/restart, nothing to break.
 }
-function getVoice(hints){if(!voices.length)voices=window.speechSynthesis.getVoices();for(const h of hints){const v=voices.find(v=>v.name.includes(h)||v.lang.startsWith(h));if(v)return v;}return voices.find(v=>v.lang.startsWith('en'))||voices[0]||null;}
+// Score voices so we prefer realistic neural ones and avoid robotic legacy ones.
+function vScore(v){const n=(v.name||'').toLowerCase();let s=0;
+  if(/natural|neural/.test(n))s+=120;
+  if(/online/.test(n))s+=50;
+  if(/google/.test(n))s+=70;
+  if(/premium|enhanced|siri/.test(n))s+=60;
+  if(/zira|david|mark|hazel|microsoft (server|mobile)/.test(n))s-=40;
+  if(v.localService===false)s+=15;
+  const l=(v.lang||'').toLowerCase();if(l.startsWith('en-us'))s+=8;else if(l.startsWith('en'))s+=5;
+  return s;}
+function rankedVoices(){if(!voices.length)voices=window.speechSynthesis.getVoices();return voices.filter(v=>(v.lang||'').toLowerCase().startsWith('en')).slice().sort((a,b)=>vScore(b)-vScore(a));}
+function getVoiceFor(key){
+  const ranked=rankedVoices();if(!ranked.length)return (voices&&voices[0])||null;
+  if(typeof SET!=='undefined'&&SET.voice&&SET.voice!=='auto'){const ov=voices.find(v=>v.name===SET.voice);if(ov)return ov;}
+  const prof=VPROF[key]||VPROF.judge;
+  for(const h of (prof.hints||[])){const v=ranked.find(v=>v.name.includes(h));if(v)return v;}
+  const keys=Object.keys(VPROF);const idx=Math.max(0,keys.indexOf(key));
+  return ranked[idx%ranked.length]||ranked[0];
+}
 function _detachUtt(){if(_spkUtt){_spkUtt.onend=null;_spkUtt.onerror=null;_spkUtt=null;}}
 // Break text into short chunks so each one starts at the CURRENT speed.
 // Changing the slider mid-speech is then seamless: the next chunk just uses the
@@ -1122,7 +1149,7 @@ function _speakNext(){
   const item=_spkQueue.shift();
   const prof=VPROF[item.profile]||VPROF.judge;
   const utt=new SpeechSynthesisUtterance(item.text);
-  utt.voice=getVoice(prof.hints);utt.pitch=prof.pitch;utt.rate=Math.max(0.1,Math.min(10,ttsRate));utt.volume=1;
+  utt.voice=getVoiceFor(item.profile);utt.pitch=prof.pitch;utt.rate=Math.max(0.1,Math.min(10,ttsRate));utt.volume=1;
   utt.onend=()=>{if(_spkUtt===utt){_spkUtt=null;_speakNext();}};
   utt.onerror=()=>{if(_spkUtt===utt){_spkUtt=null;_speakNext();}};
   _spkUtt=utt;
@@ -1734,16 +1761,20 @@ function setWitness(key){
 function initNotes(){const n=document.getElementById('notes-pad');if(!n)return;try{n.value=localStorage.getItem('mt_notes')||'';}catch(e){}n.addEventListener('input',()=>{try{localStorage.setItem('mt_notes',n.value);}catch(e){}});}
 
 // ═══════════ SETTINGS ═══════════
-let SET={tutorials:true,spotter:true,autoread:true};
+let SET={tutorials:true,spotter:true,autoread:true,voice:'auto'};
+function buildVoiceOptions(){const sel=document.getElementById('set-voice');if(!sel)return;const ranked=rankedVoices();const cur=(typeof SET!=='undefined'&&SET.voice)||'auto';sel.innerHTML='<option value="auto">Auto — best voice per character</option>'+ranked.map(v=>'<option value="'+(v.name||'').replace(/"/g,'')+'">'+v.name+(vScore(v)>=100?' ★ neural':'')+'</option>').join('');sel.value=cur;}
+function testVoice(){if(typeof stopVoice==='function')stopVoice();speak('Objection, Your Honor — the witness has no personal knowledge of that fact.',(typeof S!=='undefined'&&S.role)||'prosecution');}
 function loadSettings(){
   try{SET=Object.assign(SET,JSON.parse(localStorage.getItem('mt_settings')||'{}'));}catch(e){}
   const t=document.getElementById('set-tutorials'),s=document.getElementById('set-spotter'),a=document.getElementById('set-autoread');
   if(t)t.checked=SET.tutorials;if(s)s.checked=SET.spotter;if(a)a.checked=SET.autoread;
+  buildVoiceOptions();const vs=document.getElementById('set-voice');if(vs)vs.value=SET.voice||'auto';
 }
 function saveSettings(){
   SET.tutorials=document.getElementById('set-tutorials').checked;
   SET.spotter=document.getElementById('set-spotter').checked;
   SET.autoread=document.getElementById('set-autoread').checked;
+  const vs=document.getElementById('set-voice');if(vs)SET.voice=vs.value||'auto';
   try{localStorage.setItem('mt_settings',JSON.stringify(SET));}catch(e){}
   if(!SET.spotter){const h=document.getElementById('spotter-hint');if(h)h.style.display='none';document.querySelectorAll('.qobj-chip.pulse').forEach(c=>c.classList.remove('pulse'));}
   if(!SET.autoread)window.speechSynthesis.cancel();
@@ -1917,6 +1948,8 @@ function closeAllOverlays(){['modal-overlay','settings-overlay','pretrial-overla
 function qolInit(){
   loadSetupPrefs();
   startOllamaAutoConnect();
+  // If the browser only offers robotic voices, nudge toward Edge's free neural voices (once).
+  setTimeout(()=>{try{const r=rankedVoices();if(r.length&&r.every(v=>vScore(v)<40)&&!localStorage.getItem('mt_voicehint')){toast('Tip: open this in Microsoft Edge for realistic neural voices 🎙️',5500);localStorage.setItem('mt_voicehint','1');}}catch(e){}},3000);
   if(hasSession()){const rb=document.getElementById('resume-btn');if(rb)rb.style.display='block';}
   const tr=document.getElementById('transcript');
   if(tr)tr.addEventListener('scroll',function(){const nb=this.scrollHeight-this.scrollTop-this.clientHeight<60;const b=document.getElementById('to-latest');if(b)b.classList.toggle('show',!nb&&this.scrollHeight>this.clientHeight+90);});
