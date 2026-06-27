@@ -4,6 +4,11 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
+// Optional: npm install msedge-tts  →  free Microsoft Neural TTS voices
+let MsEdgeTTS, OUTPUT_FORMAT;
+try { ({ MsEdgeTTS, OUTPUT_FORMAT } = require('msedge-tts')); console.log('msedge-tts loaded — Neural TTS enabled'); }
+catch(e) { console.log('Neural TTS not available. For free high-quality voices run: npm install msedge-tts'); }
+
 const PORT = 8080;
 const ROOT = __dirname;
 
@@ -22,6 +27,29 @@ const MIME = {
 const server = http.createServer((req, res) => {
   // Reverse-proxy to Ollama so the browser only ever talks to THIS origin (no CORS).
   // The app fetches /ollama/api/... and we forward it to localhost:11434/api/...
+  // Neural TTS via msedge-tts — free Microsoft Neural voices, no API key.
+  // Install once: npm install msedge-tts
+  if (req.url === '/api/tts' && req.method === 'POST') {
+    if (!MsEdgeTTS) { res.writeHead(503, {'Content-Type':'text/plain','Access-Control-Allow-Origin':'*'}); res.end('not-installed'); return; }
+    const chunks = [];
+    req.on('data', c => chunks.push(c));
+    req.on('end', async () => {
+      let parsed;
+      try { parsed = JSON.parse(Buffer.concat(chunks).toString()); } catch(e) { res.writeHead(400); res.end('bad'); return; }
+      const { text = '', voice = 'en-US-AriaNeural', probe = false } = parsed;
+      if (probe) { res.writeHead(200,{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}); res.end('{"ok":true}'); return; }
+      try {
+        const tts = new MsEdgeTTS();
+        await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
+        const { audioStream } = await tts.toStream(text.slice(0, 3000));
+        res.writeHead(200, {'Content-Type':'audio/mpeg','Access-Control-Allow-Origin':'*'});
+        audioStream.pipe(res);
+        audioStream.on('error', () => { try { res.end(); } catch(_) {} });
+      } catch(e) { try { res.writeHead(500); res.end('tts-error'); } catch(_) {} }
+    });
+    return;
+  }
+
   if (req.url === '/ollama' || req.url.startsWith('/ollama/')) {
     const sub = req.url.replace(/^\/ollama/, '') || '/';
     const proxyReq = http.request(

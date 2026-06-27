@@ -654,6 +654,30 @@ body{
 .t-system{font-size:10.5px;color:var(--text-muted);font-style:italic;text-align:center;letter-spacing:.05em;padding:3px 0;position:relative}
 .typing .t-avatar{font-size:14px}
 .typing .t-bubble{justify-content:center;padding-top:7px}
+/* ── Direct Planner panel ── */
+#direct-planner{display:none;flex-direction:column;background:var(--surface);border:1px solid rgba(77,141,246,.2);border-radius:10px;margin-bottom:9px;max-height:55vh;overflow-y:auto}
+#direct-planner.open{display:flex}
+.dp-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:9px;padding:9px 13px;background:var(--surface);border-bottom:1px solid var(--border2);background:linear-gradient(180deg,rgba(77,141,246,.08),rgba(77,141,246,.04))}
+.dp-title{font-size:12px;font-weight:700;color:var(--gold);letter-spacing:.04em;flex:none}
+.dp-sub{font-size:10.5px;color:var(--text-muted);flex:1}
+.dp-close{background:none;border:none;color:var(--text-muted);font-size:16px;cursor:pointer;padding:2px 5px;border-radius:4px;line-height:1;flex:none}
+.dp-close:hover{color:var(--text);background:var(--surface2)}
+#dp-list{display:flex;flex-direction:column;gap:8px;padding:10px 13px}
+.dp-pair{display:grid;grid-template-columns:18px 1fr 1fr 20px;gap:6px;align-items:start}
+.dp-pair-num{font-size:10px;color:var(--text-muted);padding-top:8px;text-align:right}
+.dp-pair input,.dp-pair textarea{background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:6px 9px;font-size:11.5px;font-family:'Inter',sans-serif;width:100%;box-sizing:border-box;resize:none;overflow:hidden;line-height:1.5}
+.dp-pair input{height:34px}
+.dp-pair textarea{min-height:34px}
+.dp-pair input:focus,.dp-pair textarea:focus{outline:none;border-color:rgba(77,141,246,.5)}
+.dp-del{background:none;border:none;color:var(--border2);cursor:pointer;font-size:16px;padding:0;padding-top:7px;line-height:1;font-weight:300}
+.dp-del:hover{color:var(--prosecution)}
+.dp-footer{position:sticky;bottom:0;z-index:2;display:flex;align-items:center;gap:7px;padding:8px 13px;border-top:1px solid var(--border2);background:var(--surface)}
+.dp-add{background:none;border:1px dashed var(--border2);color:var(--text-dim);border-radius:6px;padding:4px 10px;font-size:10.5px;cursor:pointer;font-family:'Inter',sans-serif}
+.dp-add:hover{border-color:rgba(77,141,246,.4);color:var(--text)}
+.dp-skip{background:none;border:1px solid var(--border2);color:var(--text-dim);border-radius:6px;padding:4px 11px;font-size:10.5px;cursor:pointer;font-family:'Inter',sans-serif}
+.dp-skip:hover{background:var(--surface2)}
+.dp-run{background:rgba(77,141,246,.15);border:1px solid rgba(77,141,246,.38);color:#b0c8ff;border-radius:6px;padding:5px 14px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:.03em}
+.dp-run:hover{background:rgba(77,141,246,.28);border-color:rgba(77,141,246,.6);color:#d0e0ff}
 </style>
 </head>
 <body>
@@ -781,6 +805,21 @@ body{
       <button id="to-latest" onclick="scrollLatest()" title="Jump to the latest line">↓ Latest</button>
       <!-- INPUT — lives with the transcript so it moves & resizes together -->
       <div id="input-area">
+        <!-- Direct Planner — shown when it is your direct examination turn -->
+        <div id="direct-planner">
+          <div class="dp-head">
+            <span class="dp-title">📋 Direct Plan — <span id="dp-wname">Witness</span></span>
+            <span class="dp-sub">Pre-fill your whole direct. Edit freely, then run it all at once.</span>
+            <button class="dp-close" onclick="closeDPlan()" title="Skip — ask questions manually instead">✕</button>
+          </div>
+          <div id="dp-list"></div>
+          <div class="dp-footer">
+            <button class="dp-add" onclick="addDPRow()">+ Add Q&amp;A</button>
+            <span style="flex:1"></span>
+            <button class="dp-skip" onclick="closeDPlan()">Ask manually instead</button>
+            <button class="dp-run" onclick="runDPlan()">▶ Run Direct</button>
+          </div>
+        </div>
         <div id="action-row">
           <button class="act-btn obj icon" id="btn-obj" onclick="sendObjection()" title="Objection (O)" disabled>⚠</button>
           <button class="act-btn next" id="btn-next" onclick="nextPhase()" title="Advance to the next phase (N)" disabled>Next →</button>
@@ -844,7 +883,8 @@ body{
         <select id="set-voice" onchange="saveSettings()"></select>
         <button class="prac-btn" style="flex:0 0 auto;padding:9px 13px" onclick="testVoice()">▶ Test</button>
       </div>
-      <div style="font-size:11px;color:var(--text-dim);line-height:1.55">For the most lifelike voices, open this page in <b>Microsoft Edge</b> — its free “Natural” neural voices appear here automatically (marked ★). Chrome’s built-in voices are more limited.</div>
+      <div id=”neural-tts-status” style=”font-size:11px;line-height:1.55;margin-bottom:5px”>Checking neural TTS…</div>
+      <div style=”font-size:11px;color:var(--text-dim);line-height:1.55”>Neural TTS uses free Microsoft Edge voices via a local package — no API key, no cost, much more realistic. Run <code style=”background:var(--surface2);padding:1px 4px;border-radius:3px”>npm install msedge-tts</code> in the app folder then restart the server. Falls back to browser voices if not installed.</div>
       <div class="set-section-label">Show / hide elements — build the view you want</div>
       <div id="layout-list"></div>
       <div class="set-section-label">Practice &amp; test features</div>
@@ -1070,6 +1110,38 @@ const CASE = {
 // ═══════════ TTS ═══════════
 let voices=[], ttsRate=1.0;
 let _spkQueue=[],_spkProfile='judge',_spkOnEnd=null,_spkActive=false,_spkUtt=null;
+// Neural TTS (msedge-tts via server proxy)
+let _edgeTTSAvailable=false,_aiGen=0,_aiAudio=null;
+const EDGE_VOICE={judge:'en-GB-RyanNeural',prosecution:'en-US-JennyNeural',defense:'en-US-GuyNeural',you:'en-US-AndrewNeural',witness:'en-US-AriaNeural',witness0p:'en-US-AriaNeural',witness1p:'en-US-MonicaNeural',witness2p:'en-AU-NatashaNeural',witness0d:'en-US-EricNeural',witness1d:'en-GB-LibbyNeural',witness2d:'en-US-AmberNeural'};
+async function probeEdgeTTS(){
+  try{const r=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({probe:true,voice:'en-US-AriaNeural',text:'test'})});
+  _edgeTTSAvailable=r.ok&&(await r.text()).includes('ok');}catch(e){_edgeTTSAvailable=false;}
+  const el=document.getElementById('neural-tts-status');
+  if(el)el.innerHTML=_edgeTTSAvailable?'<span style="color:var(--defense)">✓ Neural TTS active — Microsoft Edge Neural voices (free)</span>':'<span style="color:var(--text-muted)">Neural TTS not available · <code>npm install msedge-tts</code> in the app folder then restart the server</span>';
+}
+async function _speakAISeq(items,onEnd,gen){
+  let nextFetch=null;
+  for(let i=0;i<items.length;i++){
+    if(_aiGen!==gen)return;
+    const{text,profile}=items[i];
+    const voice=EDGE_VOICE[profile]||EDGE_VOICE.judge;
+    let blob;
+    try{
+      const blobP=nextFetch||fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice})}).then(r=>{if(!r.ok)throw new Error(r.status);return r.blob();});
+      if(i+1<items.length&&_aiGen===gen){const nv=EDGE_VOICE[items[i+1].profile]||EDGE_VOICE.judge;nextFetch=fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:items[i+1].text,voice:nv})}).then(r=>{if(!r.ok)throw new Error(r.status);return r.blob();});}else{nextFetch=null;}
+      blob=await blobP;
+    }catch(e){break;}
+    if(_aiGen!==gen)return;
+    const url=URL.createObjectURL(blob);
+    await new Promise(res=>{
+      _aiAudio=new Audio(url);_aiAudio.playbackRate=Math.max(0.5,Math.min(4,ttsRate));
+      _aiAudio.onended=()=>{URL.revokeObjectURL(url);_aiAudio=null;res();};
+      _aiAudio.onerror=()=>{URL.revokeObjectURL(url);_aiAudio=null;res();};
+      _aiAudio.play().catch(()=>{URL.revokeObjectURL(url);_aiAudio=null;res();});
+    });
+  }
+  if(_aiGen===gen&&onEnd)onEnd();
+}
 function _refreshVoices(){voices=window.speechSynthesis.getVoices();if(typeof buildVoiceOptions==='function')buildVoiceOptions();}
 window.speechSynthesis.onvoiceschanged=_refreshVoices;
 setTimeout(_refreshVoices,400);setTimeout(_refreshVoices,1500);
@@ -1132,20 +1204,35 @@ function _chunkText(text){
   });
   return out.filter(Boolean);
 }
+function _cancelAllAudio(){
+  _aiGen++;if(_aiAudio){try{_aiAudio.pause();_aiAudio.src='';}catch(_){}  _aiAudio=null;}
+  _spkActive=false;_spkQueue=[];_detachUtt();try{window.speechSynthesis.cancel();}catch(_){}
+}
 function speak(text,profileKey,onEnd){
   if(typeof SET!=='undefined'&&!SET.autoread){if(onEnd)onEnd();return;}
-  _detachUtt();window.speechSynthesis.cancel();
-  _spkOnEnd=onEnd||null;_spkActive=true;
-  _spkQueue=_chunkText(text).map(c=>({text:c,profile:profileKey}));
-  _speakNext();
+  _cancelAllAudio();
+  if(_edgeTTSAvailable){
+    const gen=_aiGen;const items=_chunkText(text).map(c=>({text:c,profile:profileKey}));
+    _speakAISeq(items,onEnd,gen);
+  } else {
+    _spkOnEnd=onEnd||null;_spkActive=true;
+    _spkQueue=_chunkText(text).map(c=>({text:c,profile:profileKey}));
+    _speakNext();
+  }
 }
 // Speak several segments (each with its own voice) back-to-back.
 function speakSeq(items,onEnd){
   if(typeof SET!=='undefined'&&!SET.autoread){if(onEnd)onEnd();return;}
-  _detachUtt();window.speechSynthesis.cancel();
-  _spkOnEnd=onEnd||null;_spkActive=true;_spkQueue=[];
-  (items||[]).forEach(it=>{if(it&&it.text)_chunkText(it.text).forEach(c=>_spkQueue.push({text:c,profile:it.profile}));});
-  _speakNext();
+  _cancelAllAudio();
+  if(_edgeTTSAvailable){
+    const gen=_aiGen;const all=[];
+    (items||[]).forEach(it=>{if(it&&it.text)_chunkText(it.text).forEach(c=>all.push({text:c,profile:it.profile}));});
+    _speakAISeq(all,onEnd,gen);
+  } else {
+    _spkOnEnd=onEnd||null;_spkActive=true;_spkQueue=[];
+    (items||[]).forEach(it=>{if(it&&it.text)_chunkText(it.text).forEach(c=>_spkQueue.push({text:c,profile:it.profile}));});
+    _speakNext();
+  }
 }
 function _speakNext(){
   if(!_spkActive)return;
@@ -1202,7 +1289,7 @@ function phaseGuide(f){
   return '';
 }
 
-let S={role:'prosecution',diff:'competitive',ollamaModel:'llama3',phase:'pretrial',currentWitnessKey:null,history:[],loading:false,evidenceState:{},pretrialHistory:[],slotWitness:{},scriptQueue:[],scriptVersion:0};
+let S={role:'prosecution',diff:'competitive',ollamaModel:'llama3',phase:'pretrial',currentWitnessKey:null,history:[],loading:false,evidenceState:{},pretrialHistory:[],slotWitness:{},scriptQueue:[],scriptVersion:0,lastDirectQA:[],dpPairs:[]};
 
 // ═══════════ PRE-WRITTEN CASE VERSIONS (used when the AI delivers a phase — no LLM; the AI only kicks in to rule on objections) ═══════════
 // Each version is a self-consistent script of the whole case; one is chosen per trial so the AI side stays cohesive.
@@ -1308,6 +1395,7 @@ async function startTrial(){
   buildCharList();buildEvidenceList();buildQuickObj();buildDocTabs();initNotes();loadSettings();loadLayout();buildPhaseTrack();initPanelResizers();initAccordions();applyTextScale();startTimer();updatePhaseUI();enableButtons();
   tutorial('welcome',null,'Welcome to your trial','You are the '+S.role+'. Type or click 🎤 Speak to make your statements. Object using the buttons or the chips on the right. Open 🏛 Courtroom for a full-screen view with speech bubbles, and ⚙ Settings to toggle tutorials and the objection-training Spotter.');
   await checkOllama();
+  probeEdgeTTS();
   await beginTrial();
 }
 // ── Ollama auto-connect: poll, auto-detect models, keep status live ──
@@ -1688,8 +1776,9 @@ function parseAndDisplay(text){
 // TRIAL FLOW
 function beginTrial(){
   addEntry('COURT OFFICER','system','All rise. The Honorable Court is now in session. State v. Harper Lynn, Cause No. 25-123456.');
-  // Real pre-trial conference, scripted and instant \u2014 no waiting on the model.
-  playScriptSegs(PRETRIAL.map(s=>Object.assign({},s)));
+  S.scriptQueue=PRETRIAL.map(s=>Object.assign({},s));
+  playNextScript();
+  updateNextLabel();
 }
 async function sendMsg(){const inp=document.getElementById('user-input');const text=inp.value.trim();if(!text||S.loading)return;document.getElementById('coaching-box').style.display='none';inp.value='';inp.style.height='auto';processUserInput(text);}
 async function processUserInput(text){
@@ -1726,6 +1815,7 @@ async function sendObjection(){processUserInput('Objection!');}
 function addScriptSeg(s,speech){
   if(s.r==='witness'){const w=getCurrentWitness();addEntry('WITNESS: '+(w?w.name:'Witness'),'witness',s.t);speech.push({text:s.t,profile:(w&&w.voiceKey)||'witness0p'});}
   else if(s.r==='judge'){addEntry('JUDGE','judge',s.t);speech.push({text:s.t,profile:'judge'});}
+  else if(s.r===S.role){addEntry(S.role.toUpperCase()+' ATTORNEY (YOU)','you',s.t);speech.push({text:s.t,profile:S.role});}
   else{addEntry(s.r.toUpperCase()+' ATTORNEY',s.r,s.t);speech.push({text:s.t,profile:s.r});}
 }
 function playScriptSegs(segs){const speech=[];segs.forEach(s=>addScriptSeg(s,speech));const last=segs[segs.length-1];if(last)setSpeaking(last.r==='witness'?(S.currentWitnessKey||'wp0'):last.r==='judge'?'judge':'aiatty');speakSeq(speech,()=>setSpeaking(null));}
@@ -1759,14 +1849,111 @@ async function nextPhase(){
   if(f.kind==='pretrial'){openPretrial();return;}
   await runPhaseTransition(f);
 }
-function runPhaseTransition(f){
+async function runPhaseTransition(f){
   S.scriptQueue=[];
   const yours=userActive(f);const curW=getCurrentWitness();
-  // AI-delivered phases play a pre-written script (no LLM); the AI only rules on objections.
-  if(!yours&&scriptsFor(f.id)){playScriptIntro(f);return;}
-  // For YOUR phases the judge's invitation is scripted \u2014 instant, no waiting on the model.
+  if(!yours&&scriptsFor(f.id)){
+    // Opposing cross: if the user just ran a planned direct, enhance the cross with AI questions
+    if(f.kind==='cross'&&S.lastDirectQA&&S.lastDirectQA.length){
+      await enhanceCrossScript(f);
+    } else {
+      playScriptIntro(f);
+    }
+    return;
+  }
   playScriptSegs([{r:'judge',t:judgeInvite(f,curW)}]);
-  if(yours&&(f.kind==='direct'||f.kind==='cross'))addEntry('COURT OFFICER','system','Ask '+(curW?curW.name:'the witness')+' as many questions as you need \u2014 click \u201cEnd '+f.kind+' \u2192\u201d only when you\u2019re finished with this witness.');
+  if(yours&&f.kind==='direct'){
+    S.lastDirectQA=[];
+    openDirectPlanner(f);
+  } else if(yours&&f.kind==='cross'){
+    addEntry('COURT OFFICER','system','Ask '+(curW?curW.name:'the witness')+' your cross-examination questions \u2014 click \u201cEnd cross \u2192\u201d when finished.');
+  }
+}
+// \u2500\u2500 Direct Planner \u2500\u2500
+function openDirectPlanner(f){
+  const curW=getCurrentWitness();
+  document.getElementById('dp-wname').textContent=curW?curW.name:'Witness';
+  S.dpPairs=[];
+  const segs=scriptsFor(f.id)||[];
+  let i=0;
+  while(i<segs.length){
+    const q=segs[i];const a=segs[i+1];
+    if(q&&q.r!=='witness'&&a&&a.r==='witness'){S.dpPairs.push({q:q.t,a:a.t});i+=2;}
+    else{i++;}
+  }
+  if(!S.dpPairs.length)S.dpPairs.push({q:'',a:''});
+  renderDPairs();
+  document.getElementById('direct-planner').classList.add('open');
+}
+function closeDPlan(){
+  document.getElementById('direct-planner').classList.remove('open');
+  const f=flow();const curW=getCurrentWitness();
+  if(f&&f.kind==='direct')addEntry('COURT OFFICER','system','Ask '+(curW?curW.name:'the witness')+' as many questions as you need \u2014 click \u201cEnd direct \u2192\u201d when finished.');
+}
+function syncDPairs(){
+  S.dpPairs.forEach((_,i)=>{
+    const q=document.getElementById('dp-q-'+i);const a=document.getElementById('dp-a-'+i);
+    if(q)S.dpPairs[i].q=q.value;if(a)S.dpPairs[i].a=a.value;
+  });
+}
+function autoGrow(el){el.style.height='auto';el.style.height=el.scrollHeight+'px';}
+function renderDPairs(){
+  const list=document.getElementById('dp-list');list.innerHTML='';
+  S.dpPairs.forEach((p,i)=>{
+    const row=document.createElement('div');row.className='dp-pair';
+    row.innerHTML='<span class="dp-pair-num">'+(i+1)+'</span>'+
+      '<input id="dp-q-'+i+'" type="text" placeholder="Your question\u2026">'+
+      '<textarea id="dp-a-'+i+'" rows="1" placeholder="Witness answer\u2026"></textarea>'+
+      '<button class="dp-del" onclick="delDPRow('+i+')" title="Remove">\u00d7</button>';
+    list.appendChild(row);
+    const qi=list.querySelector('#dp-q-'+i);const ai=list.querySelector('#dp-a-'+i);
+    if(qi)qi.value=p.q;
+    if(ai){ai.value=p.a;autoGrow(ai);ai.addEventListener('input',function(){autoGrow(this);});}
+  });
+}
+function addDPRow(){
+  syncDPairs();S.dpPairs.push({q:'',a:''});renderDPairs();
+  const list=document.getElementById('dp-list');list.scrollTop=list.scrollHeight;
+}
+function delDPRow(i){syncDPairs();S.dpPairs.splice(i,1);renderDPairs();}
+function runDPlan(){
+  syncDPairs();
+  const pairs=S.dpPairs.filter(p=>p.q.trim());
+  if(!pairs.length){closeDPlan();return;}
+  S.lastDirectQA=pairs.map(p=>({q:p.q,a:p.a}));
+  const allSegs=[];
+  pairs.forEach(p=>{allSegs.push({r:S.role,t:p.q});if(p.a.trim())allSegs.push({r:'witness',t:p.a});});
+  document.getElementById('direct-planner').classList.remove('open');
+  playScriptSegs(allSegs);
+  addEntry('COURT OFFICER','system','\u2014 Direct complete \u00b7 press \u201cEnd direct \u2192\u201d to continue \u2014');
+  updateNextLabel();
+}
+// \u2500\u2500 AI-enhanced cross: weave 1-5 targeted questions based on what came out in direct \u2500\u2500
+async function enhanceCrossScript(f){
+  const curW=getCurrentWitness();const wname=curW?curW.name:'the witness';
+  const directSummary=S.lastDirectQA.map((p,i)=>(i+1)+'. Q: "'+p.q+'"\n   A: "'+p.a+'"').join('\n');
+  S.lastDirectQA=[];
+  addEntry('COURT OFFICER','system','\u2014 Opposing counsel reviews direct examination \u2014');
+  const preScript=scriptsFor(f.id)||[];
+  let aiPairs=[];
+  try{
+    S.loading=true;setButtons(true);showTyping();
+    const side=f.examiner==='defense'?'Defense':'Prosecution';
+    const prompt=side+' counsel cross-examining '+wname+'. During direct, this was established:\n'+directSummary+'\n\nGenerate 1-5 leading cross-examination questions that directly challenge or exploit those answers. Return ONLY a JSON array, no explanation:\n[{"q":"...","a":"..."}]\n"a" is the witness\'s short expected answer (1-2 sentences).';
+    const raw=await callOllama(prompt,280);
+    hideTyping();
+    const m=raw.match(/\[[\s\S]*\]/);
+    if(m)aiPairs=JSON.parse(m[0]);
+  }catch(e){hideTyping();console.warn('enhanceCross:',e);}
+  S.loading=false;setButtons(false);
+  // Build enhanced script: AI questions first, then pre-made cross
+  const enhanced=[];
+  aiPairs.forEach(p=>{enhanced.push({r:f.examiner,t:p.q});if(p.a)enhanced.push({r:'witness',t:p.a});});
+  preScript.forEach(s=>enhanced.push(s));
+  if(!enhanced.length){playScriptIntro(f);return;}
+  S.scriptQueue=enhanced;
+  addEntry('COURT OFFICER','system','\u2014 Opposing counsel cross-examines '+wname+'. Press \u201cNext \u2192\u201d for each question \u00b7 object any time \u2014');
+  playNextScript();updateNextLabel();
 }
 async function getCoaching(){
   if(S.loading)return;document.getElementById('coaching-box').style.display='none';
@@ -2042,7 +2229,7 @@ function exportTranscript(){if(!transcriptLog.length){toast('Nothing to export y
 function copyTranscript(){if(!transcriptLog.length){toast('Nothing to copy yet');return;}const txt=transcriptText();if(navigator.clipboard){navigator.clipboard.writeText(txt).then(()=>toast('Transcript copied')).catch(()=>toast('Copy blocked by browser'));}else toast('Clipboard unavailable');}
 function scrollLatest(){const t=document.getElementById('transcript');t.scrollTop=t.scrollHeight;const b=document.getElementById('to-latest');if(b)b.classList.remove('show');}
 // voice + timer
-function stopVoice(){_spkActive=false;_spkQueue=[];_detachUtt();try{window.speechSynthesis.cancel();}catch(e){}setSpeaking(null);}
+function stopVoice(){_cancelAllAudio();setSpeaking(null);}
 const PHASE_LIMIT={opening:120,direct:300,cross:240,closing:180,rebuttal:60,verdict:240};
 function startTimer(){phaseStart=Date.now();window._tphase=S.phase;if(timerInt)clearInterval(timerInt);timerInt=setInterval(tickTimer,1000);tickTimer();}
 function tickTimer(){const el=document.getElementById('phase-timer');if(!el)return;const s=Math.max(0,Math.floor((Date.now()-phaseStart)/1000));const f=flow();const lim=(f&&PHASE_LIMIT[f.kind])||0;const fmt=x=>Math.floor(x/60)+':'+String(x%60).padStart(2,'0');el.textContent='⏱ '+fmt(s)+(lim?(' / '+fmt(lim)):'');el.classList.toggle('over',!!lim&&s>lim);}
