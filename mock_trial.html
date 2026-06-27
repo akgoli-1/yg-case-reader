@@ -1504,7 +1504,7 @@ function buildSystem(){
       const yours=f.examiner===S.role;
       const qtype=f.kind==='cross'?'leading':'open, non-leading';
       phaseInstr=yours
-        ? `CURRENT PHASE: ${f.kind.toUpperCase()} of ${curW?curW.name:'the witness'} — the USER (${f.examiner}) is examining. Respond ONLY as [WITNESS: ${curW?curW.name:''}] answering the user's question — UNLESS the question is objectionable and you (as ${aiRole} attorney) make a brief objection, or the user addresses the court. ${EXAM_RULES}`
+        ? `CURRENT PHASE: ${f.kind.toUpperCase()} of ${curW?curW.name:'the witness'} — this is a ONE-ON-ONE exchange: the USER (the ${f.examiner}) asks the questions and ${curW?curW.name:'the witness'} answers directly. Output ONLY the witness's answer on a single line prefixed [WITNESS: ${curW?curW.name:''}]. Do NOT output any attorney line, do NOT repeat, rephrase, or relay the question, do NOT narrate. The ONLY exception: if the question is improper, instead output one short objection line "[${aiRole.toUpperCase()} ATTORNEY] Objection, <ground>." ${EXAM_RULES}`
         : `CURRENT PHASE: ${f.kind.toUpperCase()} of ${curW?curW.name:'the witness'} — YOU (the ${f.examiner} attorney) are examining and the USER is opposing counsel who may only object. On each turn ask ONE ${qtype} question as [${f.examiner.toUpperCase()} ATTORNEY] on its own line, then on the next line give the witness's answer as [WITNESS: ${curW?curW.name:''}]. Keep the examination moving. If the user objects, reply as [JUDGE] ruling sustained/overruled. ${EXAM_RULES}`;
     } else if(f.kind==='pretrial'){phaseInstr='CURRENT PHASE: PRE-TRIAL.';}
     else if(f.kind==='verdict'){phaseInstr='CURRENT PHASE: VERDICT & EVALUATION.';}
@@ -1546,9 +1546,13 @@ function parseAndDisplay(text){
     if(new RegExp('[Ee]xhibit\\s+'+e.num+'\\b').test(text)){if(/admitted|received|entered/i.test(text))updateEvidence(e.id,'admitted');else if(/excluded/i.test(text))updateEvidence(e.id,'excluded');}
   });
   // Split the response into tagged segments so an attorney Q + witness A render separately.
+  const _f=flow();const activeExam=!!(_f&&(_f.kind==='direct'||_f.kind==='cross')&&_f.examiner===S.role);
   const re=/\[(JUDGE|WITNESS:[^\]]*|PROSECUTION ATTORNEY|DEFENSE ATTORNEY)\]/gi;
   const pos=[];let m;while((m=re.exec(text))){pos.push({idx:m.index,full:m[0],tag:m[1]});}
-  if(!pos.length){const clean=text.replace(/^\[[^\]]+\]\s*/i,'').trim();addEntry('COURT','judge',clean);setSpeaking('judge');speak(clean,'judge',()=>setSpeaking(null));return;}
+  if(!pos.length){const clean=text.replace(/^\[[^\]]+\]\s*/i,'').trim();
+    if(activeExam){const w=getCurrentWitness();addEntry('WITNESS: '+(w?w.name:'Witness'),'witness',clean);setSpeaking(S.currentWitnessKey||'wp0');speak(clean,(w&&w.voiceKey)||'witness0p',()=>setSpeaking(null));runSpotter(clean);}
+    else{addEntry('COURT','judge',clean);setSpeaking('judge');speak(clean,'judge',()=>setSpeaking(null));}
+    return;}
   const speech=[];let lastId=null;
   for(let i=0;i<pos.length;i++){
     const start=pos[i].idx+pos[i].full.length;
@@ -1568,6 +1572,8 @@ function parseAndDisplay(text){
       runSpotter(body);
     } else {
       const side=/PROSECUTION/i.test(tag)?'prosecution':'defense';
+      // During YOUR examination it's one-on-one: suppress any attorney line that isn't an objection.
+      if(activeExam&&!/object/i.test(body))continue;
       addEntry(side.toUpperCase()+' ATTORNEY',side,body);
       speech.push({text:body,profile:side});lastId='aiatty';
       if(side!==S.role)runSpotter(body);
