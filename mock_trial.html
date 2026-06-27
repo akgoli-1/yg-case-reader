@@ -1171,7 +1171,33 @@ function phaseGuide(f){
   return '';
 }
 
-let S={role:'prosecution',diff:'competitive',ollamaModel:'llama3',phase:'pretrial',currentWitnessKey:null,history:[],loading:false,evidenceState:{},pretrialHistory:[],slotWitness:{}};
+let S={role:'prosecution',diff:'competitive',ollamaModel:'llama3',phase:'pretrial',currentWitnessKey:null,history:[],loading:false,evidenceState:{},pretrialHistory:[],slotWitness:{},scriptQueue:[]};
+
+// ═══════════ PRE-WRITTEN SCRIPTS (used when the AI delivers a phase — no LLM needed; the AI only kicks in to rule on objections) ═══════════
+// r = role of the line: 'prosecution' | 'defense' (attorney) or 'witness'. Monologues = one line; exams = Q,A,Q,A…
+const SCRIPTS={
+  p_open:[{r:'prosecution',t:'May it please the court. The evidence will show that on February 3rd, Councilmember Dakota Maddox was killed by a car bomb — and that the defendant, Harper Lynn, is responsible. You will hear that she publicly threatened the victim, that a burner phone tied to her campaign pinged near his home that night, that her laptop held deleted searches for untraceable phones, and that ten thousand dollars left her account for a company that does not exist. The State will prove, beyond a reasonable doubt, that this was no coincidence — it was a plan.'}],
+  d_open:[{r:'defense',t:'May it please the court. The State’s case is built on coincidence and assumption. There are no fingerprints, no eyewitness who places Harper Lynn at that scene, and no proof she built or planted anything. The burner phone covers nearly two miles — a library, a Whataburger, hundreds of homes. The searches were on an unsecured computer anyone could use. And the State’s own neighbor saw a tall man with a limp, and a truck speeding away — not five-foot-four Harper Lynn in her sedan. The evidence points away from my client, and reasonable doubt is everywhere.'}],
+  p_close:[{r:'prosecution',t:'Motive, means, and opportunity — the State has shown all three. Harper Lynn told the world the victim would “be gone,” searched how to disappear digitally, moved money to a shell company, and a phone tied to her campaign was there that night. Each fact alone might be doubted; together they tell one story. We ask you to find the defendant guilty on all counts.'}],
+  d_close:[{r:'defense',t:'The State asks you to stack one “maybe” on another until it looks like certainty. But a 1.8-mile phone ping is not a fingerprint. An unsecured laptop is not a confession. And their own witness describes someone who is not Harper Lynn. Reasonable doubt is not a loophole — it is the law. We ask for the only verdict the evidence supports: not guilty.'}],
+  p_rebuttal:[{r:'prosecution',t:'The defense points to a tall stranger and a truck — but offers no name, no evidence, only doubt for its own sake. What they cannot explain is why Ms. Lynn searched for untraceable phones, why her money went to a company that does not exist, and why she threatened the victim by name. Those are not coincidences. Hold her accountable.'}],
+  // ── Prosecution directs of its witnesses (Reaves, Tiernan, Knox) ──
+  p_w1_d:[{r:'prosecution',t:'Detective Reaves, what did you recover near the victim’s home?'},{r:'witness',t:'Two blocks away, in a storm drain, we found a burner phone. Its IMEI traced back to Ms. Lynn’s 2023 campaign.'},{r:'prosecution',t:'Did that phone place anyone near the scene?'},{r:'witness',t:'It pinged a tower covering the victim’s street at 2:14 a.m. the night of the explosion.'},{r:'prosecution',t:'What did the defendant’s laptop reveal?'},{r:'witness',t:'Deleted searches — how to spoof a phone number, untraceable carriers, and when metadata becomes permanent.'}],
+  p_w2_d:[{r:'prosecution',t:'Ms. Tiernan, what did you hear the defendant say about the victim?'},{r:'witness',t:'At a council meeting she shouted he was “the rot in this city” and that “February couldn’t come fast enough.”'},{r:'prosecution',t:'Did she say anything more privately?'},{r:'witness',t:'At a party she said, “One day he’ll push the wrong person too far.”'},{r:'prosecution',t:'What happened on January 27th?'},{r:'witness',t:'She asked if Kody still parked in his driveway overnight, then said, “Good to know, in case someone needs to send him a message.”'}],
+  p_w3_d:[{r:'prosecution',t:'Mr. Knox, what did you recover from the defendant’s accounts?'},{r:'witness',t:'A deleted post from her verified account: “You’ll get what’s coming to you, 86KM” — eighty-six meaning remove, K-M the victim’s initials.'},{r:'prosecution',t:'And the laptop searches?'},{r:'witness',t:'Searches for spoofing phone numbers and untraceable carriers, all deleted from a guest tab.'},{r:'prosecution',t:'Was an anonymous tip traced?'},{r:'witness',t:'To a library terminal — the same terminal where Ms. Lynn’s credentials were logged in that afternoon.'}],
+  // ── Defense directs of its witnesses (Lynn, Torres, Parker) ──
+  d_w1_d:[{r:'defense',t:'Ms. Lynn, did you harm Kody Maddox?'},{r:'witness',t:'No. We disagreed on policy, but it was never personal. I would never hurt him.'},{r:'defense',t:'Where were you when that wire transfer was sent?'},{r:'witness',t:'In a City Hall budget meeting at 8:13 p.m. — I could not have sent it from my home WiFi. I reported the fraud the next morning.'},{r:'defense',t:'And the burner phone?'},{r:'witness',t:'It was a campaign volunteer phone from 2023, lost long ago. I have no idea who had it.'}],
+  d_w2_d:[{r:'defense',t:'Mr. Torres, how reliable is the digital evidence here?'},{r:'witness',t:'On a scale of ten, I’d rate it a three or four. Nothing uniquely ties Ms. Lynn to these devices.'},{r:'defense',t:'What about the cell tower?'},{r:'witness',t:'That tower covers a 1.8-mile radius — the library, a Whataburger, hundreds of homes. It only shows an idle ping, no call.'},{r:'defense',t:'And the laptop searches?'},{r:'witness',t:'Performed in a guest tab on an unsecured office computer. There is no way to know who typed them.'}],
+  d_w3_d:[{r:'defense',t:'Ms. Parker, what did you see the night of the explosion?'},{r:'witness',t:'A tall figure, about six feet, broad shoulders, walking with a limp on the left leg — near Kody’s driveway.'},{r:'defense',t:'Could that have been Harper Lynn?'},{r:'witness',t:'Absolutely not. Harper is tiny — five-foot-four. This was a big man.'},{r:'defense',t:'What did you hear leave the scene?'},{r:'witness',t:'A truck or SUV, a deep engine. Not Harper’s little sedan. I’m positive.'}],
+  // ── Defense crosses of prosecution witnesses ──
+  p_w1_x:[{r:'defense',t:'Detective, you found no fingerprints on that phone, correct?'},{r:'witness',t:'That’s correct, none were recovered.'},{r:'defense',t:'And that tower covers nearly two miles, including a public library?'},{r:'witness',t:'Yes, the coverage radius is about 1.8 miles.'},{r:'defense',t:'You never put Ms. Lynn at the scene, did you?'},{r:'witness',t:'No eyewitness placed her there, no.'}],
+  p_w2_x:[{r:'defense',t:'Ms. Tiernan, you were once fired for inventory discrepancies, weren’t you?'},{r:'witness',t:'Yes, when I was nineteen.'},{r:'defense',t:'You never actually believed Harper was capable of violence?'},{r:'witness',t:'No, I didn’t think she was.'},{r:'defense',t:'And “February” could simply mean the next election, couldn’t it?'},{r:'witness',t:'I suppose it could.'}],
+  p_w3_x:[{r:'defense',t:'Mr. Knox, you can’t say who actually typed those searches, can you?'},{r:'witness',t:'No, the guest tab had no login.'},{r:'defense',t:'Multiple staffers used that office computer?'},{r:'witness',t:'Yes, interns and assistants had access.'},{r:'defense',t:'And that library router still used default credentials?'},{r:'witness',t:'It hadn’t been updated since 2020, yes.'}],
+  // ── Prosecution crosses of defense witnesses ──
+  d_w1_x:[{r:'prosecution',t:'Ms. Lynn, you publicly said the victim would “be gone one way or another,” didn’t you?'},{r:'witness',t:'I was angry about politics. I didn’t mean harm.'},{r:'prosecution',t:'You waited six days to report a ten-thousand-dollar fraud?'},{r:'witness',t:'I didn’t notice it right away.'},{r:'prosecution',t:'And a 40-pound bag of ammonium nitrate fertilizer was found in your garage?'},{r:'witness',t:'I use it for my garden. So does half the street.'}],
+  d_w2_x:[{r:'prosecution',t:'Mr. Torres, you weren’t there that night, were you?'},{r:'witness',t:'No, I’m analyzing the records after the fact.'},{r:'prosecution',t:'A 1.8-mile radius still includes the victim’s home, correct?'},{r:'witness',t:'Yes, it does include it.'},{r:'prosecution',t:'You can’t rule out that the defendant used that phone, can you?'},{r:'witness',t:'I can’t prove who used it either way.'}],
+  d_w3_x:[{r:'prosecution',t:'Ms. Parker, you file frequent neighborhood complaints, don’t you?'},{r:'witness',t:'I keep an eye on things, yes.'},{r:'prosecution',t:'It was dark, and you were watching from a distance?'},{r:'witness',t:'Yes, but I know what I saw.'},{r:'prosecution',t:'You can’t say for certain that figure had nothing to do with the defendant, can you?'},{r:'witness',t:'I only know it wasn’t her.'}]
+};
 
 // ═══════════ SETUP ═══════════
 function sel(el){document.querySelectorAll(`[data-g="${el.dataset.g}"]`).forEach(e=>e.classList.remove('sel'));el.classList.add('sel');}
@@ -1179,7 +1205,7 @@ function getv(g){return document.querySelector(`[data-g="${g}"].sel`)?.dataset.v
 async function startTrial(){
   S.role=getv('role');S.diff=getv('diff');S.ollamaModel=document.getElementById('ollama-model-input').value.trim()||'llama3';
   saveSetupPrefs();clearSession();
-  CASE.evidence.forEach(e=>{S.evidenceState[e.id]='pending';});S.slotWitness={};
+  CASE.evidence.forEach(e=>{S.evidenceState[e.id]='pending';});S.slotWitness={};S.scriptQueue=[];
   document.getElementById('setup-screen').style.display='none';
   buildCharList();buildEvidenceList();buildQuickObj();buildDocTabs();initNotes();loadSettings();loadLayout();buildPhaseTrack();initPanelResizers();initAccordions();applyTextScale();startTimer();updatePhaseUI();enableButtons();
   tutorial('welcome',null,'Welcome to your trial','You are the '+S.role+'. Type or click 🎤 Speak to make your statements. Object using the buttons or the chips on the right. Open 🏛 Courtroom for a full-screen view with speech bubbles, and ⚙ Settings to toggle tutorials and the objection-training Spotter.');
@@ -1401,8 +1427,7 @@ function updatePhaseUI(){
     const w=getCurrentWitness();
     document.getElementById('svg-witness-label').textContent=w?w.name.split(' ')[0].toUpperCase():'WITNESS';
   } else {S.currentWitnessKey=null;document.getElementById('svg-witness-label').textContent='WITNESS';}
-  const nb=document.getElementById('btn-next');
-  if(nb){const next=FLOW[idx+1];if(!next)nb.textContent='Done';else if(next.id==='verdict')nb.textContent='🔨 Verdict';else{nb.textContent='Next →';nb.title='Next: '+next.label;}}
+  updateNextLabel();
   const examPhase=f&&(f.kind==='direct'||f.kind==='cross');
   document.querySelectorAll('.qobj-chip').forEach(c=>c.disabled=!examPhase);
   // Active examination phase + the active speaker hint on the courtroom diagram
@@ -1537,6 +1562,19 @@ async function sendMsg(){const inp=document.getElementById('user-input');const t
 async function processUserInput(text){
   if(S.loading)return;
   clearSpotter();
+  // During a scripted (AI-side) examination, the AI only kicks in to rule on objections.
+  if(S.scriptQueue&&S.scriptQueue.length){
+    if(/\bobject/i.test(text)){
+      setSpeaking('youatty');addEntry(S.role.toUpperCase()+' ATTORNEY (YOU)','you',text);speak(text,S.role,()=>setSpeaking(null));
+      const f=flow();const curW=getCurrentWitness();
+      S.loading=true;setButtons(true);showTyping();
+      const prompt='Opposing counsel is conducting the '+(f?f.kind:'examination')+' of '+(curW?curW.name:'the witness')+'. The user (opposing counsel) objects: "'+text+'". As [JUDGE], rule in ONE sentence \u2014 Sustained or Overruled \u2014 with a brief reason. Do not continue the examination or add anything else.';
+      try{const resp=await callOllama(prompt,110);S.history.push({role:'user',content:text});S.history.push({role:'assistant',content:resp});parseAndDisplay(resp);}
+      catch(e){hideTyping();addEntry('SYSTEM','system','\u26a0 Ollama error.');}
+      S.loading=false;setButtons(false);
+    } else { playNextScript(); }
+    return;
+  }
   setSpeaking('youatty');addEntry(S.role.toUpperCase()+' ATTORNEY (YOU)','you',text);speak(text,S.role,()=>setSpeaking(null));
   S.history.push({role:'user',content:text});S.loading=true;setButtons(true);showTyping();
   try{const resp=await callOllama(text);S.history.push({role:'assistant',content:resp});parseAndDisplay(resp);}
@@ -1544,8 +1582,29 @@ async function processUserInput(text){
   S.loading=false;setButtons(false);
 }
 async function sendObjection(){processUserInput('Objection!');}
+// ── Scripted-phase playback (AI side delivers pre-written content) ──
+function addScriptSeg(s,speech){
+  if(s.r==='witness'){const w=getCurrentWitness();addEntry('WITNESS: '+(w?w.name:'Witness'),'witness',s.t);speech.push({text:s.t,profile:(w&&w.voiceKey)||'witness0p'});}
+  else if(s.r==='judge'){addEntry('JUDGE','judge',s.t);speech.push({text:s.t,profile:'judge'});}
+  else{addEntry(s.r.toUpperCase()+' ATTORNEY',s.r,s.t);speech.push({text:s.t,profile:s.r});}
+}
+function playScriptSegs(segs){const speech=[];segs.forEach(s=>addScriptSeg(s,speech));const last=segs[segs.length-1];if(last)setSpeaking(last.r==='witness'?(S.currentWitnessKey||'wp0'):last.r==='judge'?'judge':'aiatty');speakSeq(speech,()=>setSpeaking(null));}
+function playNextScript(){
+  if(!S.scriptQueue||!S.scriptQueue.length){addEntry('COURT OFFICER','system','— Examination complete · press “Next →” to continue —');updateNextLabel();return;}
+  const out=[S.scriptQueue.shift()];
+  if(S.scriptQueue.length&&S.scriptQueue[0].r==='witness'&&out[0].r!=='witness')out.push(S.scriptQueue.shift());
+  playScriptSegs(out);updateNextLabel();
+}
+function playScriptIntro(f){
+  const segs=(SCRIPTS[f.id]||[]).map(s=>Object.assign({},s));
+  if(f.kind==='opening'||f.kind==='closing'||f.kind==='rebuttal'){playScriptSegs(segs);S.scriptQueue=[];}
+  else{S.scriptQueue=segs;addEntry('COURT OFFICER','system','— Opposing counsel examines '+((getCurrentWitness()||{}).name||'the witness')+'. Press “Next →” for each question · object any time —');playNextScript();}
+  updateNextLabel();
+}
+function updateNextLabel(){const nb=document.getElementById('btn-next');if(!nb)return;const idx=PHASES.indexOf(S.phase);const next=FLOW[idx+1];if(S.scriptQueue&&S.scriptQueue.length){nb.textContent='Next Q →';nb.title='Next scripted question (or object)';}else if(!next){nb.textContent='Done';}else if(next.id==='verdict'){nb.textContent='🔨 Verdict';}else{nb.textContent='Next →';nb.title='Next: '+next.label;}}
 async function nextPhase(){
   if(S.loading)return;
+  if(S.scriptQueue&&S.scriptQueue.length){playNextScript();return;} // step through the scripted exam first
   const idx=PHASES.indexOf(S.phase);if(idx>=PHASES.length-1)return;
   S.phase=PHASES[idx+1];updatePhaseUI();
   const f=flow();
@@ -1556,7 +1615,10 @@ async function nextPhase(){
   await runPhaseTransition(f);
 }
 async function runPhaseTransition(f){
+  S.scriptQueue=[];
   const yours=userActive(f);const curW=getCurrentWitness();
+  // AI-delivered phases play a pre-written script (no LLM); the AI only rules on objections.
+  if(!yours&&SCRIPTS[f.id]){playScriptIntro(f);return;}
   let prompt;
   if(f.kind==='opening'||f.kind==='closing'||f.kind==='rebuttal'){
     const kw=f.kind==='rebuttal'?'rebuttal (the final word, responding to the defense closing)':f.kind;
@@ -1818,13 +1880,13 @@ function updateDrillScore(){const e=document.getElementById('drill-score');if(e)
 let transcriptLog=[],_saveT=null,textScale=1,timerInt=null,phaseStart=Date.now();
 function toast(msg,ms){const t=document.getElementById('toast');if(!t)return;t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),ms||2200);}
 function scheduleSave(){clearTimeout(_saveT);_saveT=setTimeout(saveSession,800);}
-function saveSession(){try{localStorage.setItem('mt_session',JSON.stringify({role:S.role,diff:S.diff,model:S.ollamaModel,phase:S.phase,currentWitnessKey:S.currentWitnessKey,slotWitness:S.slotWitness,history:S.history,evidenceState:S.evidenceState,log:transcriptLog}));}catch(e){}}
+function saveSession(){try{localStorage.setItem('mt_session',JSON.stringify({role:S.role,diff:S.diff,model:S.ollamaModel,phase:S.phase,currentWitnessKey:S.currentWitnessKey,slotWitness:S.slotWitness,scriptQueue:S.scriptQueue,history:S.history,evidenceState:S.evidenceState,log:transcriptLog}));}catch(e){}}
 function hasSession(){try{return !!localStorage.getItem('mt_session');}catch(e){return false;}}
 function clearSession(){try{localStorage.removeItem('mt_session');}catch(e){}}
 function resumeSession(){
   let d;try{d=JSON.parse(localStorage.getItem('mt_session')||'null');}catch(e){}
   if(!d){toast('No saved trial found');return;}
-  S.role=d.role;S.diff=d.diff;S.ollamaModel=d.model;S.phase=d.phase;S.currentWitnessKey=d.currentWitnessKey;S.slotWitness=d.slotWitness||{};S.history=d.history||[];S.evidenceState=d.evidenceState||{};
+  S.role=d.role;S.diff=d.diff;S.ollamaModel=d.model;S.phase=d.phase;S.currentWitnessKey=d.currentWitnessKey;S.slotWitness=d.slotWitness||{};S.scriptQueue=d.scriptQueue||[];S.history=d.history||[];S.evidenceState=d.evidenceState||{};
   document.getElementById('setup-screen').style.display='none';
   buildCharList();buildEvidenceList();buildQuickObj();buildDocTabs();initNotes();loadSettings();loadLayout();buildPhaseTrack();initPanelResizers();initAccordions();enableButtons();applyTextScale();startTimer();
   Object.keys(S.evidenceState).forEach(id=>{if(S.evidenceState[id]!=='pending')updateEvidence(id,S.evidenceState[id]);});
