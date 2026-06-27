@@ -1551,7 +1551,7 @@ function buildSystem(){
       const yours=f.examiner===S.role;
       const qtype=f.kind==='cross'?'leading':'open, non-leading';
       phaseInstr=yours
-        ? `CURRENT PHASE: ${f.kind.toUpperCase()} of ${curW?curW.name:'the witness'} — this is a ONE-ON-ONE exchange: the USER (the ${f.examiner}) asks the questions and ${curW?curW.name:'the witness'} answers directly. Output ONLY the witness's answer on a single line prefixed [WITNESS: ${curW?curW.name:''}]. Do NOT output any attorney line, do NOT repeat, rephrase, or relay the question, do NOT narrate. The ONLY exception: if the question is improper, instead output one short objection line "[${aiRole.toUpperCase()} ATTORNEY] Objection, <ground>." ${EXAM_RULES}`
+        ? `CURRENT PHASE: ${f.kind.toUpperCase()} of ${curW?curW.name:'the witness'} — this is a ONE-ON-ONE exchange: the USER (the ${f.examiner}) asks the questions and ${curW?curW.name:'the witness'} answers directly. Output ONLY the witness's answer on a single line prefixed [WITNESS: ${curW?curW.name:''}]. Do NOT output any attorney line, do NOT repeat, rephrase, or relay the question, do NOT narrate. NEVER end the examination, NEVER say “no further questions,” and NEVER invite cross-examination — only answer and wait for the user's next question. The ONLY exception: if the question is improper, instead output one short objection line "[${aiRole.toUpperCase()} ATTORNEY] Objection, <ground>." ${EXAM_RULES}`
         : `CURRENT PHASE: ${f.kind.toUpperCase()} of ${curW?curW.name:'the witness'} — YOU (the ${f.examiner} attorney) are examining and the USER is opposing counsel who may only object. On each turn ask ONE ${qtype} question as [${f.examiner.toUpperCase()} ATTORNEY] on its own line, then on the next line give the witness's answer as [WITNESS: ${curW?curW.name:''}]. Keep the examination moving. If the user objects, reply as [JUDGE] ruling sustained/overruled. ${EXAM_RULES}`;
     } else if(f.kind==='pretrial'){phaseInstr='CURRENT PHASE: PRE-TRIAL.';}
     else if(f.kind==='verdict'){phaseInstr='CURRENT PHASE: VERDICT & EVALUATION.';}
@@ -1608,6 +1608,8 @@ function parseAndDisplay(text){
     if(!body)continue;
     const tag=pos[i].tag;
     if(/^JUDGE$/i.test(tag)){
+      // During YOUR examination, the judge only speaks to rule on an objection — drop "you may cross" etc.
+      if(activeExam&&!/sustain|overrul/i.test(body))continue;
       addEntry('JUDGE','judge',body);
       if(/sustained|overruled/i.test(body))addObjLog(/sustained/i.test(body)?'Sustained':'Overruled',body.split('.')[0]);
       speech.push({text:body,profile:'judge'});lastId='judge';
@@ -1681,7 +1683,12 @@ function playScriptIntro(f){
   else{S.scriptQueue=segs;addEntry('COURT OFFICER','system','— Opposing counsel examines '+((getCurrentWitness()||{}).name||'the witness')+'. Press “Next →” for each question · object any time —');playNextScript();}
   updateNextLabel();
 }
-function updateNextLabel(){const nb=document.getElementById('btn-next');if(!nb)return;const idx=PHASES.indexOf(S.phase);const next=FLOW[idx+1];if(S.scriptQueue&&S.scriptQueue.length){nb.textContent='Next Q →';nb.title='Next scripted question (or object)';}else if(!next){nb.textContent='Done';}else if(next.id==='verdict'){nb.textContent='🔨 Verdict';}else{nb.textContent='Next →';nb.title='Next: '+next.label;}}
+function updateNextLabel(){const nb=document.getElementById('btn-next');if(!nb)return;const idx=PHASES.indexOf(S.phase);const next=FLOW[idx+1];const f=flow();
+  if(S.scriptQueue&&S.scriptQueue.length){nb.textContent='Next Q →';nb.title='Next scripted question (or object)';}
+  else if(f&&(f.kind==='direct'||f.kind==='cross')&&f.examiner===S.role){nb.textContent=(f.kind==='cross'?'End cross →':'End direct →');nb.title='Finish with this witness and move on — keep asking questions until then';}
+  else if(!next){nb.textContent='Done';}
+  else if(next.id==='verdict'){nb.textContent='🔨 Verdict';}
+  else{nb.textContent='Next →';nb.title='Next: '+next.label;}}
 async function nextPhase(){
   if(S.loading)return;
   if(S.scriptQueue&&S.scriptQueue.length){playNextScript();return;} // step through the scripted exam first
@@ -1713,6 +1720,7 @@ async function runPhaseTransition(f){
   S.loading=true;setButtons(true);showTyping();setSpeaking('judge');
   try{const resp=await callOllama(prompt);S.history.push({role:'user',content:prompt});S.history.push({role:'assistant',content:resp});parseAndDisplay(resp);}
   catch(e){hideTyping();addEntry('SYSTEM','system','\u26a0 Ollama error.');}
+  if(yours&&(f.kind==='direct'||f.kind==='cross'))addEntry('COURT OFFICER','system','Ask '+(curW?curW.name:'the witness')+' as many questions as you need \u2014 click \u201cEnd '+f.kind+' \u2192\u201d only when you\u2019re finished with this witness.');
   S.loading=false;setButtons(false);
 }
 async function getCoaching(){
