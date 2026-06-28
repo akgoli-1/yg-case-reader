@@ -63,11 +63,19 @@ export default async function handler(req) {
   const geminiUrl = isOAuth
     ? 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse'
     : 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?key=' + key + '&alt=sse';
-  const geminiResp = await fetch(geminiUrl, { method: 'POST', headers: geminiHeaders, body: JSON.stringify(geminiBody) });
+
+  let geminiResp;
+  try {
+    geminiResp = await fetch(geminiUrl, { method: 'POST', headers: geminiHeaders, body: JSON.stringify(geminiBody) });
+  } catch (fetchErr) {
+    return new Response(JSON.stringify({ error: 'Fetch failed: ' + fetchErr.message }), {
+      status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
 
   if (!geminiResp.ok) {
     const err = await geminiResp.text();
-    return new Response(err, {
+    return new Response(JSON.stringify({ error: 'Gemini ' + geminiResp.status + ': ' + err }), {
       status: geminiResp.status,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
