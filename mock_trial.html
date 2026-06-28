@@ -134,11 +134,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 #send-btn:hover:not(:disabled){opacity:.88}
 #send-btn:disabled{opacity:.35;cursor:not-allowed}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:10px}
-#version-tag{position:fixed;bottom:8px;right:10px;font-size:10px;color:var(--text-muted);font-family:'Inter',sans-serif;letter-spacing:.04em;z-index:9999;pointer-events:none;opacity:.6;user-select:none}
+#version-tag{position:fixed;bottom:8px;right:10px;font-size:10px;color:var(--text-muted);font-family:'Inter',sans-serif;letter-spacing:.04em;z-index:9999;cursor:pointer;opacity:.6;user-select:none;transition:opacity .15s}
+#version-tag:hover{opacity:1;color:var(--gold)}
+#rate-note{padding:0 16px 9px;font-size:11px;color:var(--text-muted);line-height:1.5;background:var(--surface);font-style:italic}
 </style>
 </head>
 <body>
-<div id="version-tag">v1.2</div>
+<div id="version-tag" onclick="showChangelog()" title="Click to see what's new">v1.3</div>
 
 <!-- ════ UPLOAD ════ -->
 <div id="upload-screen">
@@ -207,6 +209,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
           oninput="autoGrow(this)" onkeydown="inputKey(event)"></textarea>
         <button id="send-btn" onclick="sendMsg()">Send →</button>
       </div>
+      <div id="rate-note">⚠️ Heads up: the AI is free, so it can slow down or hit a rate limit after a few messages. If a reply stalls, just wait about a minute and try again.</div>
     </div>
 
   </div>
@@ -555,6 +558,18 @@ function sendMsg(){
 }
 function inputKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}}
 function autoGrow(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,140)+'px';}
+
+// ══════ CHANGELOG ══════
+const CHANGELOG=[
+  ['v1.3','Added rate-limit heads-up note + clickable version changelog'],
+  ['v1.2','Cleaner AI formatting (headers, bullets, no walls of text) + asks before guessing'],
+  ['v1.1','Added version tag so you can tell which build is live'],
+  ['v1.0','Tabs for each topic, per-tab chats, checklists, no auto-send on load'],
+];
+function showChangelog(){
+  alert('Y&G Case Reader — Update History\n\n'+
+    CHANGELOG.map(([v,d])=>v+'  —  '+d).join('\n\n'));
+}
 </script>
 </body>
 </html>
