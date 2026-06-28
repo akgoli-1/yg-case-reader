@@ -130,6 +130,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 #user-input{flex:1;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:9px;padding:9px 12px;font-size:13px;font-family:'Inter',sans-serif;resize:none;min-height:42px;max-height:140px;line-height:1.5;outline:none}
 #user-input:focus{border-color:var(--accent)}
 #user-input::placeholder{color:var(--text-muted)}
+#deep-btn{background:var(--surface2);color:var(--text-dim);border:1px solid var(--border2);font-weight:600;font-size:12px;padding:9px 11px;border-radius:9px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;transition:all .15s;height:42px;flex-shrink:0}
+#deep-btn:hover{border-color:var(--gold-dim);color:var(--text)}
+#deep-btn.on{background:rgba(212,168,67,.16);border-color:var(--gold);color:var(--gold)}
 #send-btn{background:var(--gold);color:#1a1200;border:none;font-weight:700;font-size:13px;padding:9px 16px;border-radius:9px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;transition:opacity .15s;height:42px;flex-shrink:0}
 #send-btn:hover:not(:disabled){opacity:.88}
 #send-btn:disabled{opacity:.35;cursor:not-allowed}
@@ -170,7 +173,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   <div id="file-status"></div>
 
   <button id="go-btn" onclick="startReader()" disabled>Upload a case packet to continue →</button>
-  <div style="text-align:center;margin-top:14px"><span class="vtag" onclick="showChangelog()" title="Click to see what's new">Case Reader v1.4 · what's new</span></div>
+  <div style="text-align:center;margin-top:14px"><span class="vtag" onclick="showChangelog()" title="Click to see what's new">Case Reader v1.5 · what's new</span></div>
 </div>
 </div>
 
@@ -182,7 +185,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
     <span id="hdr-role" class="prosecution">PROSECUTION</span>
     <div id="hdr-model"><span class="dot"></span>llama-3.3-70b</div>
     <button id="hdr-new" onclick="newCase()">↩ New case</button>
-    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v1.4</span>
+    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v1.5</span>
   </div>
 
   <div id="reader-body">
@@ -206,6 +209,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
       <div id="tab-title"><span class="ti">💬</span><span id="tab-title-text">Ask Anything</span></div>
       <div id="messages"></div>
       <div id="input-area">
+        <button id="deep-btn" onclick="toggleDeep()" title="Pull the exact wording from your case so the AI can tell you precisely what's wrong. Uses a bit more — turn on only when you need pinpoint detail.">🔍 Deep Dive</button>
         <textarea id="user-input" placeholder="Type your question…" rows="1"
           oninput="autoGrow(this)" onkeydown="inputKey(event)"></textarea>
         <button id="send-btn" onclick="sendMsg()">Send →</button>
@@ -232,6 +236,7 @@ const TABS = [
 let caseText='', caseName='', role='prosecution';
 let activeTab='general', loading=false;
 let caseDigest='', digestPromise=null;   // compressed case, built once to save tokens
+let deepMode=false;                       // when on, the next message pulls exact case excerpts
 let tabState={};
 TABS.forEach(t=>{ tabState[t.id]={ history:[], checks:[] }; });
 
@@ -308,6 +313,7 @@ function startReader(){
 
 function newCase(){
   caseText='';caseName='';caseDigest='';digestPromise=null;
+  if(deepMode)toggleDeep();
   TABS.forEach(t=>{ tabState[t.id]={ history:[], checks:[] }; });
   document.getElementById('reader-screen').classList.remove('active');
   document.getElementById('upload-screen').style.display='flex';
@@ -442,15 +448,50 @@ function ensureDigest(){
   return digestPromise;
 }
 
+// ══════ DEEP DIVE: pull only the case passages relevant to the question ══════
+// Client-side keyword match — costs zero tokens to find the right excerpts,
+// so the AI sees the exact wording without us sending the whole packet.
+const STOP=new Set(('the a an and or of to in is it that this for on with as was were be by at '+
+  'what how why who when where do does did i you my your me we our their his her them they he she '+
+  'can could would should will help case witness about from have has had not but if so just like get '+
+  'whats want need tell give make find').split(' '));
+function relevantChunks(question, maxChunks=5, maxChars=5000){
+  const chunks=caseText.split(/\n\n+/).map(c=>c.trim().replace(/\s+/g,' ')).filter(c=>c.length>40);
+  const keys=[...new Set((question.toLowerCase().match(/[a-z0-9']+/g)||[])
+    .filter(w=>w.length>2 && !STOP.has(w)))];
+  if(!keys.length) return [];
+  const scored=chunks.map((c,i)=>{
+    const lc=c.toLowerCase();let s=0;
+    for(const k of keys){ if(lc.includes(k)) s+= (lc.split(k).length-1); }
+    return {c,s,i};
+  }).filter(x=>x.s>0).sort((a,b)=> b.s-a.s || a.i-b.i);
+  const out=[];let total=0;
+  for(const x of scored){
+    if(out.length>=maxChunks || total+x.c.length>maxChars) break;
+    out.push(x.c);total+=x.c.length;
+  }
+  return out;
+}
+
 // ══════ CHAT ══════
-function buildSystem(ctx){
+function buildSystem(ctx, excerpts){
   const tab=TABS.find(t=>t.id===activeTab);
   const caseLabel=(ctx===caseText)?'FULL CASE PACKET':'CASE DIGEST (key facts, witnesses, exhibits)';
+  let deepBlock='';
+  if(excerpts && excerpts.length){
+    deepBlock=`
+
+=== DEEP DIVE: EXACT EXCERPTS FROM THE CASE (verbatim) ===
+The student wants a precise, detailed analysis. Below are the most relevant passages pulled straight from the case packet. Use the EXACT wording here — quote it directly, point out specifically what is wrong, weak, contradictory, or usable, and say which witness/exhibit it comes from. Trust these excerpts over the digest for anything they cover.
+
+${excerpts.join('\n\n— — —\n\n')}
+`;
+  }
   return `You are a friendly Y&G (Youth & Government) mock trial coach helping a high school student compete. The student is the ${role.toUpperCase()} attorney. Current topic: ${tab.label}.
 
 ${caseLabel}:
 ${ctx}
-
+${deepBlock}
 === HOW TO RESPOND (very important) ===
 Make every answer SUPER easy to read. Never dump a wall of text. Follow these rules:
 - Open with ONE short sentence that answers the core question. No long preamble.
@@ -555,12 +596,13 @@ async function ask(userMsg){
   showTyping();
   try{
     const ctx=await ensureDigest();   // builds the compact case digest once, then reuses it
+    const excerpts=deepMode?relevantChunks(userMsg):null;   // deep dive → exact case passages
     const resp=await fetch('/api/chat',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         messages:tabState[tabId].history.slice(-6),
-        system:buildSystem(ctx)
+        system:buildSystem(ctx,excerpts)
       })
     });
     if(!resp.ok){
@@ -611,8 +653,17 @@ function sendMsg(){
 function inputKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}}
 function autoGrow(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,140)+'px';}
 
+function toggleDeep(){
+  deepMode=!deepMode;
+  document.getElementById('deep-btn').classList.toggle('on',deepMode);
+  document.getElementById('user-input').placeholder=deepMode
+    ? '🔍 Deep Dive ON — ask about a specific part and I\'ll quote the exact wording…'
+    : 'Type your question…';
+}
+
 // ══════ CHANGELOG ══════
 const CHANGELOG=[
+  ['v1.5','Added 🔍 Deep Dive — pulls the exact wording from your case so the AI can pinpoint what\'s wrong, while staying token-cheap'],
   ['v1.4','Moved version tag to header; big token savings — case is now compressed once into a digest instead of re-sent every message'],
   ['v1.3','Added rate-limit heads-up note + clickable version changelog'],
   ['v1.2','Cleaner AI formatting (headers, bullets, no walls of text) + asks before guessing'],
