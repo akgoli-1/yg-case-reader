@@ -362,7 +362,7 @@ async function ask(userMsg){
     if(!resp.ok){
       const err=await resp.text();
       let msg='API error '+resp.status;
-      try{const j=JSON.parse(err);msg=j.error||msg;}catch(_){}
+      try{const j=JSON.parse(err);msg=j.error?.message||j.error?.status||JSON.stringify(j.error)||msg;}catch(_){}
       throw new Error(msg);
     }
     hideTyping();
