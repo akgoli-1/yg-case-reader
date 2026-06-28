@@ -15,10 +15,10 @@ export default async function handler(req) {
     return new Response('Method not allowed', { status: 405 });
   }
 
-  const key = (process.env.GEMINI_API_KEY || '').trim();
+  const key = (process.env.GROQ_API_KEY || '').trim();
   if (!key) {
     return new Response(
-      JSON.stringify({ error: 'GEMINI_API_KEY is not set in environment variables' }),
+      JSON.stringify({ error: 'GROQ_API_KEY is not set in environment variables' }),
       { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
     );
   }
@@ -29,54 +29,41 @@ export default async function handler(req) {
 
   const { messages = [], system = '' } = body;
 
-  // Convert to Gemini format (user/model roles, no system in contents)
-  let contents = messages
-    .filter(m => m.role === 'user' || m.role === 'assistant')
-    .map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }]
-    }));
+  const groqMessages = [];
+  if (system) groqMessages.push({ role: 'system', content: system });
+  groqMessages.push(...messages);
 
-  // Gemini requires alternating roles — merge consecutive same-role messages
-  const deduped = [];
-  for (const msg of contents) {
-    if (deduped.length && deduped[deduped.length - 1].role === msg.role) {
-      deduped[deduped.length - 1].parts[0].text += '\n' + msg.parts[0].text;
-    } else {
-      deduped.push(msg);
-    }
-  }
-  // Must start with user
-  if (deduped.length && deduped[0].role === 'model') deduped.shift();
-  if (!deduped.length) return new Response('No messages', { status: 400 });
-
-  const geminiBody = {
-    contents: deduped,
-    ...(system && { systemInstruction: { parts: [{ text: system }] } }),
-    generationConfig: { temperature: 0.72, maxOutputTokens: 1200, topK: 35, topP: 0.9 }
-  };
-
-  const geminiHeaders = { 'Content-Type': 'application/json' };
-  const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?key=' + encodeURIComponent(key) + '&alt=sse';
-
-  let geminiResp;
+  let groqResp;
   try {
-    geminiResp = await fetch(geminiUrl, { method: 'POST', headers: geminiHeaders, body: JSON.stringify(geminiBody) });
-  } catch (fetchErr) {
-    return new Response(JSON.stringify({ error: 'Fetch failed: ' + fetchErr.message }), {
+    groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + key,
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: groqMessages,
+        stream: true,
+        max_tokens: 1200,
+        temperature: 0.72,
+      })
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: 'Fetch failed: ' + e.message }), {
       status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   }
 
-  if (!geminiResp.ok) {
-    const err = await geminiResp.text();
-    return new Response(JSON.stringify({ error: 'Gemini ' + geminiResp.status + ': ' + err }), {
-      status: geminiResp.status,
+  if (!groqResp.ok) {
+    const err = await groqResp.text();
+    return new Response(JSON.stringify({ error: 'Groq ' + groqResp.status + ': ' + err }), {
+      status: groqResp.status,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   }
 
-  return new Response(geminiResp.body, {
+  return new Response(groqResp.body, {
     headers: {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',

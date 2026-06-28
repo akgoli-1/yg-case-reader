@@ -151,7 +151,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 <div id="upload-card">
   <h2>⚖️ Y&G Case Reader</h2>
   <p class="sub">Upload your Y&G case packet PDF — AI reads the entire document and gives you targeted coaching, strategy, and feedback.</p>
-  <div><span class="powered">✦ <span class="gem">Gemini 2.0 Flash</span> · Free · Full case read (no truncation)</span></div>
+  <div><span class="powered">✦ <span class="gem">llama-3.3-70b (Groq)</span> · Free · Full case read (no truncation)</span></div>
 
   <div class="s-label">Your Role</div>
   <div class="s-grid">
@@ -184,7 +184,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
     <h1>⚖️ Case Reader</h1>
     <span id="hdr-case">—</span>
     <span id="hdr-role" class="prosecution">PROSECUTION</span>
-    <div id="hdr-model"><span class="dot"></span> Gemini 2.0 Flash</div>
+    <div id="hdr-model"><span class="dot"></span> llama-3.3-70b (Groq)</div>
     <button id="hdr-new" onclick="newCase()">↩ New case</button>
   </div>
   <div id="reader-body">
@@ -324,7 +324,7 @@ function addMsg(who, text, live=false){
   div.className='msg'+(who==='you'?' you':'');
   div.innerHTML=
     `<div class="msg-av">${who==='you'?'🎙️':'✦'}</div>`+
-    `<div class="msg-body"><div class="msg-role">${who==='you'?'You':'Gemini 2.0 Flash'}</div>`+
+    `<div class="msg-body"><div class="msg-role">${who==='you'?'You':'llama-3.3-70b (Groq)'}</div>`+
     `<div class="msg-text${live?' live':''}">${text||''}</div></div>`;
   msgs.appendChild(div);
   msgs.scrollTop=msgs.scrollHeight;
@@ -377,7 +377,7 @@ async function ask(userMsg){
         if(!ln.startsWith('data: '))continue;
         try{
           const d=JSON.parse(ln.slice(6));
-          const chunk=d.candidates?.[0]?.content?.parts?.[0]?.text;
+          const chunk=d.choices?.[0]?.delta?.content;
           if(chunk){full+=chunk;bubble.textContent=full;msgs.scrollTop=msgs.scrollHeight;}
         }catch(_){}
       }
