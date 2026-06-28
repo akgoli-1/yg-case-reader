@@ -126,6 +126,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 .tdot:nth-child(2){animation-delay:.2s}.tdot:nth-child(3){animation-delay:.4s}
 @keyframes tdot{0%,60%,100%{opacity:.25}30%{opacity:1}}
 .hint-row{text-align:center;font-size:12px;color:var(--text-muted);font-style:italic;padding:24px 16px}
+.excerpt-card{align-self:flex-start;max-width:92%;background:rgba(212,168,67,.06);border:1px solid rgba(212,168,67,.26);border-left:3px solid var(--gold);border-radius:10px;padding:10px 13px}
+.excerpt-card .ec-head{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.excerpt-card blockquote{margin:0 0 8px;padding-left:10px;border-left:2px solid rgba(212,168,67,.4);font-family:'EB Garamond',serif;font-size:13px;line-height:1.55;color:var(--text-dim);font-style:italic}
+.excerpt-card blockquote:last-child{margin-bottom:0}
 #input-area{padding:11px 16px;border-top:1px solid var(--border);background:var(--surface);display:flex;gap:8px;align-items:flex-end;flex-shrink:0}
 #user-input{flex:1;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:9px;padding:9px 12px;font-size:13px;font-family:'Inter',sans-serif;resize:none;min-height:42px;max-height:140px;line-height:1.5;outline:none}
 #user-input:focus{border-color:var(--accent)}
@@ -149,7 +153,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 <div id="upload-card">
   <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
     <h2>⚖️ Y&G Case Reader</h2>
-    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v1.5</span>
+    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v1.6</span>
   </div>
   <p class="sub">Upload your case packet — AI gives you coaching, strategy, and feedback organized by topic.</p>
   <div><span class="powered">✦ <b>llama-3.3-70b</b> via Groq · Free · No rate limits in normal use</span></div>
@@ -187,7 +191,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
     <span id="hdr-role" class="prosecution">PROSECUTION</span>
     <div id="hdr-model"><span class="dot"></span>llama-3.3-70b</div>
     <button id="hdr-new" onclick="newCase()">↩ New case</button>
-    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v1.5</span>
+    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v1.6</span>
   </div>
 
   <div id="reader-body">
@@ -484,7 +488,13 @@ function buildSystem(ctx, excerpts){
     deepBlock=`
 
 === DEEP DIVE: EXACT EXCERPTS FROM THE CASE (verbatim) ===
-The student wants a precise, detailed analysis. Below are the most relevant passages pulled straight from the case packet. Use the EXACT wording here — quote it directly, point out specifically what is wrong, weak, contradictory, or usable, and say which witness/exhibit it comes from. Trust these excerpts over the digest for anything they cover.
+The student wants a precise, detailed analysis grounded in the real text. Below are the most relevant passages pulled straight from the case packet.
+RULES FOR THIS ANSWER:
+- When you make a point, FIRST quote the exact sentence from these excerpts inside "quotation marks", then explain it. Don't paraphrase the source — quote it word-for-word.
+- Name the witness or exhibit each quote comes from.
+- Point out specifically what is wrong, weak, contradictory, or usable in that exact language.
+- Only use wording that actually appears in these excerpts. If something isn't here, say so instead of inventing it.
+- Trust these excerpts over the digest for anything they cover.
 
 ${excerpts.join('\n\n— — —\n\n')}
 `;
@@ -584,6 +594,20 @@ function showTyping(){
 }
 function hideTyping(){typingEl?.remove();typingEl=null;}
 
+// Show the exact case passages Deep Dive pulled, so the student sees what the AI is reading
+function showExcerptCard(excerpts){
+  const msgs=document.getElementById('messages');
+  const card=document.createElement('div');
+  card.className='excerpt-card';
+  card.innerHTML='<div class="ec-head">📄 Reading these lines straight from your case</div>'+
+    excerpts.map(e=>{
+      const t=e.length>340?e.slice(0,340).trim()+'…':e;
+      return '<blockquote>'+esc(t)+'</blockquote>';
+    }).join('');
+  msgs.appendChild(card);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
 function setBusy(on){
   loading=on;
   document.getElementById('send-btn').disabled=on;
@@ -617,6 +641,10 @@ async function ask(userMsg){
       throw new Error(String(msg).slice(0,120));
     }
     hideTyping();
+    if(deepMode){
+      if(excerpts&&excerpts.length) showExcerptCard(excerpts);
+      else addMsg('ai','🔍 **Deep Dive:** I couldn\'t pinpoint an exact passage for that. Try naming a **witness, exhibit number, or a specific keyword** from your case and I\'ll quote the exact lines. (Answering from the case summary for now.)');
+    }
     const bubble=addMsg('ai','',true);
     const msgs=document.getElementById('messages');
     const reader=resp.body.getReader();const dec=new TextDecoder();let full='';
@@ -665,6 +693,7 @@ function toggleDeep(){
 
 // ══════ CHANGELOG ══════
 const CHANGELOG=[
+  ['v1.6','Deep Dive now shows the exact lines pulled from your case and makes the AI quote them word-for-word'],
   ['v1.5','Added 🔍 Deep Dive — pulls the exact wording from your case so the AI can pinpoint what\'s wrong, while staying token-cheap'],
   ['v1.4','Moved version tag to header; big token savings — case is now compressed once into a digest instead of re-sent every message'],
   ['v1.3','Added rate-limit heads-up note + clickable version changelog'],
