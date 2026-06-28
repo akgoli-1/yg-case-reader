@@ -147,7 +147,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 <!-- ════ UPLOAD ════ -->
 <div id="upload-screen">
 <div id="upload-card">
-  <h2>⚖️ Y&G Case Reader</h2>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <h2>⚖️ Y&G Case Reader</h2>
+    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v1.5</span>
+  </div>
   <p class="sub">Upload your case packet — AI gives you coaching, strategy, and feedback organized by topic.</p>
   <div><span class="powered">✦ <b>llama-3.3-70b</b> via Groq · Free · No rate limits in normal use</span></div>
 
@@ -173,7 +176,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   <div id="file-status"></div>
 
   <button id="go-btn" onclick="startReader()" disabled>Upload a case packet to continue →</button>
-  <div style="text-align:center;margin-top:14px"><span class="vtag" onclick="showChangelog()" title="Click to see what's new">Case Reader v1.5 · what's new</span></div>
 </div>
 </div>
 
