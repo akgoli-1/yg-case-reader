@@ -56,9 +56,11 @@ export default async function handler(req) {
     generationConfig: { temperature: 0.72, maxOutputTokens: 1200, topK: 35, topP: 0.9 }
   };
 
+  // Support both AIza (API key) and AQ. (OAuth token) formats
+  const isOAuth = key.startsWith('AQ.') || key.startsWith('ya29.');
   const geminiResp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?key=${key}&alt=sse`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(geminiBody) }
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse${isOAuth ? '' : '&key='+key}`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key, ...(isOAuth && { 'Authorization': `Bearer ${key}` }) }, body: JSON.stringify(geminiBody) }
   );
 
   if (!geminiResp.ok) {
