@@ -15,7 +15,7 @@ export default async function handler(req) {
     return new Response('Method not allowed', { status: 405 });
   }
 
-  const key = process.env.GEMINI_API_KEY;
+  const key = (process.env.GEMINI_API_KEY || '').trim();
   if (!key) {
     return new Response(
       JSON.stringify({ error: 'GEMINI_API_KEY is not set in environment variables' }),
@@ -58,11 +58,14 @@ export default async function handler(req) {
 
   // Support both AIza (API key) and AQ. (OAuth token) formats
   const isOAuth = key.startsWith('AQ.') || key.startsWith('ya29.');
-  const geminiHeaders = { 'Content-Type': 'application/json', 'x-goog-api-key': key };
-  if (isOAuth) geminiHeaders['Authorization'] = 'Bearer ' + key;
-  const geminiUrl = isOAuth
-    ? 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse'
-    : 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?key=' + key + '&alt=sse';
+  const geminiHeaders = { 'Content-Type': 'application/json' };
+  let geminiUrl;
+  if (isOAuth) {
+    geminiHeaders['Authorization'] = 'Bearer ' + key;
+    geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse';
+  } else {
+    geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?key=' + encodeURIComponent(key) + '&alt=sse';
+  }
 
   let geminiResp;
   try {
