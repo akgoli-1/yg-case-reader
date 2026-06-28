@@ -109,6 +109,17 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 .msg.you .msg-text{background:linear-gradient(180deg,rgba(77,141,246,.18),rgba(77,141,246,.07));border-color:rgba(77,141,246,.38);border-top-right-radius:4px;font-family:'Inter',sans-serif;font-size:13px}
 .msg:not(.you) .msg-text{border-top-left-radius:4px}
 .msg-text.live{border-color:rgba(77,141,246,.4)}
+.msg-text.md{white-space:normal}
+.msg-text.md p{margin:0 0 8px}
+.msg-text.md p:last-child{margin-bottom:0}
+.msg-text.md h4{font-family:'Inter',sans-serif;font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--gold);margin:13px 0 5px;text-transform:none}
+.msg-text.md h4:first-child{margin-top:0}
+.msg-text.md ul,.msg-text.md ol{margin:4px 0 10px;padding-left:20px}
+.msg-text.md li{margin:4px 0;line-height:1.6}
+.msg-text.md li:last-child{margin-bottom:0}
+.msg-text.md strong{font-weight:700;color:#fff}
+.msg-text.md em{font-style:italic;color:var(--text)}
+.msg-text.md code{background:rgba(255,255,255,.09);padding:1px 5px;border-radius:4px;font-size:12px;font-family:ui-monospace,monospace}
 .typing-row{display:flex;gap:10px;align-items:center}
 .typing-dots{display:flex;gap:4px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;border-top-left-radius:4px}
 .tdot{width:6px;height:6px;border-radius:50%;background:var(--text-muted);animation:tdot 1.2s infinite}
@@ -127,7 +138,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 </style>
 </head>
 <body>
-<div id="version-tag">v1.1</div>
+<div id="version-tag">v1.2</div>
 
 <!-- ════ UPLOAD ════ -->
 <div id="upload-screen">
@@ -381,14 +392,34 @@ function deleteCheck(i){
 function buildSystem(){
   const opp=role==='prosecution'?'defense':'prosecution';
   const tab=TABS.find(t=>t.id===activeTab);
-  return `You are a Y&G (Youth & Government) mock trial coach helping a high school student compete. The student is the ${role.toUpperCase()} attorney. Current topic: ${tab.label}.
+  return `You are a friendly Y&G (Youth & Government) mock trial coach helping a high school student compete. The student is the ${role.toUpperCase()} attorney. Current topic: ${tab.label}.
 
 FULL CASE PACKET:
 ${caseText}
 
-Be specific — reference actual witness names, exhibit numbers, and facts. Give actionable coaching. Use bullet points for lists. Keep answers focused and scannable.
+=== HOW TO RESPOND (very important) ===
+Make every answer SUPER easy to read. Never dump a wall of text. Follow these rules:
+- Open with ONE short sentence that answers the core question. No long preamble.
+- Break everything into short chunks. Use **bold headers** to label sections.
+- Use bullet points (start lines with "- ") for lists. Keep each bullet to one idea.
+- Use numbered lists (1. 2. 3.) for steps or sequences.
+- Keep sentences short. Use plain, encouraging language — you're talking to a teenager.
+- Bold the key terms, names, and exhibit numbers so they pop.
+- Add a blank line between sections so it breathes.
+- Aim for tight, scannable answers — not essays. If something is long, summarize then offer to go deeper.
+- End complex answers with a quick "**Want me to ___?**" follow-up offer.
 
-Y&G rules: Witnesses limited to affidavits. Common objections: hearsay (802), leading on direct (611), speculation (701), relevance (402), lack of personal knowledge (602). Openings/closings 2–3 min. Direct is non-leading; cross is leading.`;
+=== ASK BEFORE ASSUMING ===
+If the request is vague or could mean several things, DON'T guess and write a huge answer. Instead ask 1–2 quick clarifying questions first. Examples:
+- "Which witness do you mean — **Jordan Lee** or **Casey Park**?"
+- "Do you want the full opening, or just help with the theme?"
+Only skip the question if the answer is genuinely obvious from context.
+
+=== BE SPECIFIC ===
+Always reference the ACTUAL witness names, exhibit numbers, and facts from the case packet above. Generic advice is useless — tie everything to this specific case.
+
+=== Y&G RULES (for accuracy) ===
+Witnesses limited to their affidavits. Common objections: hearsay (802), leading on direct (611), speculation (701), relevance (402), lack of personal knowledge (602). Openings/closings run 2–3 min. Direct exam is non-leading; cross is leading.`;
 }
 
 function renderMessages(tabId){
@@ -406,15 +437,42 @@ function renderMessages(tabId){
   msgs.scrollTop=msgs.scrollHeight;
 }
 
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// Lightweight markdown → HTML so AI answers render clean (bold, headers, lists)
+function mdToHtml(src){
+  const lines=esc(src).split('\n');
+  let html='',listType=null;
+  const closeList=()=>{if(listType){html+='</'+listType+'>';listType=null;}};
+  const inline=(t)=>t
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/(^|[^*])\*(?!\s)(.+?)\*(?!\*)/g,'$1<em>$2</em>')
+    .replace(/`(.+?)`/g,'<code>$1</code>');
+  for(const raw of lines){
+    const line=raw.trim();
+    if(!line){closeList();continue;}
+    let m;
+    if((m=line.match(/^#{1,6}\s+(.*)$/))){closeList();html+='<h4>'+inline(m[1])+'</h4>';continue;}
+    if((m=line.match(/^[-*]\s+(.*)$/))){if(listType!=='ul'){closeList();listType='ul';html+='<ul>';}html+='<li>'+inline(m[1])+'</li>';continue;}
+    if((m=line.match(/^\d+[.)]\s+(.*)$/))){if(listType!=='ol'){closeList();listType='ol';html+='<ol>';}html+='<li>'+inline(m[1])+'</li>';continue;}
+    closeList();html+='<p>'+inline(line)+'</p>';
+  }
+  closeList();
+  return html;
+}
+
 function addMsg(who, text, live=false, scrollTo=true){
   const msgs=document.getElementById('messages');
   msgs.querySelector('.hint-row')?.remove();
   const div=document.createElement('div');
   div.className='msg'+(who==='you'?' you':'');
+  const isAi=who!=='you';
+  const inner=isAi?(text?mdToHtml(text):''):esc(text||'');
+  const mdClass=(isAi&&text)?' md':'';
   div.innerHTML=
     `<div class="msg-av">${who==='you'?'🎙️':'✦'}</div>`+
     `<div class="msg-body"><div class="msg-role">${who==='you'?'You':'Case Reader'}</div>`+
-    `<div class="msg-text${live?' live':''}">${text||''}</div></div>`;
+    `<div class="msg-text${live?' live':''}${mdClass}">${inner}</div></div>`;
   msgs.appendChild(div);
   if(scrollTo)msgs.scrollTop=msgs.scrollHeight;
   return div.querySelector('.msg-text');
@@ -471,6 +529,9 @@ async function ask(userMsg){
       }
     }
     bubble.classList.remove('live');
+    bubble.classList.add('md');
+    bubble.innerHTML=mdToHtml(full);
+    msgs.scrollTop=msgs.scrollHeight;
     tabState[tabId].history.push({role:'assistant',content:full});
   }catch(e){
     hideTyping();
