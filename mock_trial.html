@@ -144,6 +144,39 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 .vtag{font-size:10.5px;color:var(--text-muted);font-family:'Inter',sans-serif;letter-spacing:.04em;cursor:pointer;user-select:none;white-space:nowrap;transition:color .15s;padding:3px 8px;border:1px solid var(--border);border-radius:20px}
 .vtag:hover{color:var(--gold);border-color:var(--gold-dim)}
 #rate-note{padding:0 16px 9px;font-size:11px;color:var(--text-muted);line-height:1.5;background:var(--surface);font-style:italic}
+#hdr-guide{background:none;border:1px solid var(--border2);color:var(--gold);font-size:11px;padding:4px 9px;border-radius:6px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;font-weight:600}
+#hdr-guide:hover{background:rgba(212,168,67,.12);border-color:var(--gold)}
+
+/* ── Guide / tutorial modal ── */
+#guide-overlay{position:fixed;inset:0;background:rgba(4,7,14,.74);backdrop-filter:blur(3px);z-index:10000;display:none;align-items:center;justify-content:center;padding:24px}
+#guide-overlay.show{display:flex}
+#guide-modal{background:linear-gradient(180deg,#0e1626,#0a1120);border:1px solid var(--border2);border-radius:16px;max-width:640px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 30px 90px rgba(0,0,0,.7);padding:24px 26px 22px}
+#guide-modal h2{font-family:'EB Garamond',serif;font-size:24px;color:var(--gold);margin-bottom:3px}
+#guide-modal .gsub{font-size:12.5px;color:var(--text-dim);font-style:italic;margin-bottom:18px;line-height:1.5}
+.g-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+#guide-close{background:none;border:1px solid var(--border2);color:var(--text-dim);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;flex-shrink:0;line-height:1}
+#guide-close:hover{color:var(--text);border-color:var(--gold-dim)}
+.g-sec{margin-top:18px}
+.g-sec-title{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin-bottom:8px;display:flex;align-items:center;gap:7px}
+.g-sec p{font-size:13px;color:var(--text-dim);line-height:1.65;margin-bottom:6px}
+.g-sec p strong{color:var(--text)}
+.g-list{list-style:none;display:flex;flex-direction:column;gap:7px}
+.g-list li{font-size:12.5px;color:var(--text-dim);line-height:1.5;padding-left:24px;position:relative}
+.g-list li .gi{position:absolute;left:0;top:0;font-size:14px}
+.g-list li b{color:var(--text)}
+.g-examples{display:flex;flex-direction:column;gap:8px}
+.g-ex{text-align:left;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;cursor:pointer;transition:all .14s;font-family:'Inter',sans-serif;color:var(--text);display:flex;align-items:center;gap:10px}
+.g-ex:hover{border-color:var(--gold);background:rgba(212,168,67,.08)}
+.g-ex .gx-icon{font-size:15px;flex-shrink:0}
+.g-ex .gx-body{flex:1;min-width:0}
+.g-ex .gx-text{font-size:13px;line-height:1.4}
+.g-ex .gx-tag{font-size:10px;color:var(--text-muted);margin-top:2px}
+.g-ex .gx-deep{color:var(--gold);font-weight:600}
+.g-quote{background:rgba(212,168,67,.06);border:1px solid rgba(212,168,67,.26);border-left:3px solid var(--gold);border-radius:10px;padding:11px 13px;margin-top:4px}
+.g-quote .gq-label{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);margin-bottom:6px}
+.g-quote blockquote{margin:0;font-family:'EB Garamond',serif;font-size:13.5px;line-height:1.6;color:var(--text-dim);font-style:italic}
+#guide-gotit{width:100%;margin-top:22px;background:var(--gold);color:#1a1200;border:none;font-weight:700;font-size:13.5px;padding:11px;border-radius:10px;cursor:pointer;font-family:'Inter',sans-serif}
+#guide-gotit:hover{opacity:.9}
 </style>
 </head>
 <body>
@@ -153,7 +186,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 <div id="upload-card">
   <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
     <h2>⚖️ Y&G Case Reader</h2>
-    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v1.6</span>
+    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v1.7</span>
   </div>
   <p class="sub">Upload your case packet — AI gives you coaching, strategy, and feedback organized by topic.</p>
   <div><span class="powered">✦ <b>llama-3.3-70b</b> via Groq · Free · No rate limits in normal use</span></div>
@@ -190,8 +223,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
     <span id="hdr-case">—</span>
     <span id="hdr-role" class="prosecution">PROSECUTION</span>
     <div id="hdr-model"><span class="dot"></span>llama-3.3-70b</div>
+    <button id="hdr-guide" onclick="openGuide()">📖 How it works</button>
     <button id="hdr-new" onclick="newCase()">↩ New case</button>
-    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v1.6</span>
+    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v1.7</span>
   </div>
 
   <div id="reader-body">
@@ -223,6 +257,57 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
       <div id="rate-note">⚠️ Heads up: the AI is free, so it can slow down or hit a rate limit after a few messages. If a reply stalls, just wait about a minute and try again.</div>
     </div>
 
+  </div>
+</div>
+
+<!-- ════ GUIDE / TUTORIAL ════ -->
+<div id="guide-overlay" onclick="if(event.target===this)closeGuide()">
+  <div id="guide-modal">
+    <div class="g-head">
+      <div>
+        <h2>📖 How the Case Reader works</h2>
+        <div class="gsub" id="guide-sub">A quick tour — with examples built from your own case.</div>
+      </div>
+      <button id="guide-close" onclick="closeGuide()">✕</button>
+    </div>
+
+    <div class="g-sec">
+      <div class="g-sec-title">🗂️ Topic tabs (left side)</div>
+      <p>Each tab on the left is its <strong>own separate conversation</strong> for one part of your case. Switch between them anytime — each remembers its own chat.</p>
+      <ul class="g-list">
+        <li><span class="gi">💬</span><b>Ask Anything</b> — general questions about the case.</li>
+        <li><span class="gi">📢</span><b>Opening Statement</b> — themes, structure, and lines.</li>
+        <li><span class="gi">👤</span><b>Witnesses</b> — direct exam prep, what to draw out.</li>
+        <li><span class="gi">🔍</span><b>Evidence</b> — getting exhibits admitted, objections.</li>
+        <li><span class="gi">⚠️</span><b>My Weaknesses</b> — find weak spots, track them with checkboxes.</li>
+        <li><span class="gi">❓</span><b>Cross-Exam</b> — questions to attack the other side's witnesses.</li>
+        <li><span class="gi">🔨</span><b>Closing Argument</b> — wrap-up structure and key points.</li>
+      </ul>
+    </div>
+
+    <div class="g-sec">
+      <div class="g-sec-title">🔍 Deep Dive button</div>
+      <p>Normally the AI works from a short summary of your case (keeps it fast). Turn on <strong>🔍 Deep Dive</strong> (next to the chat box) when you want it to read the <strong>exact wording</strong> of your script and tell you precisely what's wrong — it'll quote the real lines back to you.</p>
+    </div>
+
+    <div class="g-sec">
+      <div class="g-sec-title">✅ Checklists</div>
+      <p>On the Witnesses, Evidence, and Weaknesses tabs, a checklist shows up in the sidebar. Add things you need to handle and check them off as you go.</p>
+    </div>
+
+    <div class="g-sec" id="guide-quote-sec" style="display:none">
+      <div class="g-sec-title">📄 Straight from your case</div>
+      <p>This is a real line from the packet you uploaded — Deep Dive lets the AI work with exact text like this:</p>
+      <div class="g-quote"><div class="gq-label" id="guide-quote-label">From your case</div><blockquote id="guide-quote-text"></blockquote></div>
+    </div>
+
+    <div class="g-sec">
+      <div class="g-sec-title">⚡ Try these on your case</div>
+      <p>Click one to run it right now:</p>
+      <div class="g-examples" id="guide-examples"></div>
+    </div>
+
+    <button id="guide-gotit" onclick="closeGuide()">Got it — let's go ✨</button>
   </div>
 </div>
 
@@ -315,6 +400,10 @@ function startReader(){
   buildTabs();
   switchTab('general');
   ensureDigest();   // start building the compact case digest in the background now
+  if(!localStorage.getItem('yg_guide_seen')){   // show the tutorial on first ever use
+    setTimeout(openGuide,400);
+    try{localStorage.setItem('yg_guide_seen','1');}catch(_){}
+  }
 }
 
 function newCase(){
@@ -693,6 +782,7 @@ function toggleDeep(){
 
 // ══════ CHANGELOG ══════
 const CHANGELOG=[
+  ['v1.7','Added a "How it works" tutorial with clickable examples built from your own case (real witness names, a real quote)'],
   ['v1.6','Deep Dive now shows the exact lines pulled from your case and makes the AI quote them word-for-word'],
   ['v1.5','Added 🔍 Deep Dive — pulls the exact wording from your case so the AI can pinpoint what\'s wrong, while staying token-cheap'],
   ['v1.4','Moved version tag to header; big token savings — case is now compressed once into a digest instead of re-sent every message'],
@@ -704,6 +794,91 @@ const CHANGELOG=[
 function showChangelog(){
   alert('Y&G Case Reader — Update History\n\n'+
     CHANGELOG.map(([v,d])=>v+'  —  '+d).join('\n\n'));
+}
+
+// ══════ GUIDE / TUTORIAL ══════
+// Pulls real names, exhibits, and a quote from the uploaded case so the
+// tutorial's examples are about THEIR case, not generic placeholders.
+function extractWitnesses(text){
+  const names=new Set();let m;
+  const re1=/affidavit of\s+([A-Z][a-zA-Z.'-]+(?:\s+[A-Z][a-zA-Z.'-]+){0,2})/gi;
+  while((m=re1.exec(text))) names.add(m[1].trim());
+  const re2=/\bI,\s+([A-Z][a-zA-Z.'-]+(?:\s+[A-Z][a-zA-Z.'-]+){1,2}),/g;
+  while((m=re2.exec(text))) names.add(m[1].trim());
+  const re3=/\b(?:Officer|Dr\.?|Detective|Mr\.?|Ms\.?|Mrs\.?)\s+([A-Z][a-zA-Z.'-]+(?:\s+[A-Z][a-zA-Z.'-]+)?)/g;
+  while((m=re3.exec(text))) names.add(m[1].trim());
+  return [...names].filter(n=>n.length>2&&n.length<40).slice(0,4);
+}
+function extractExhibits(text){
+  const ex=new Set();let m;
+  const re=/exhibit\s+([0-9]{1,2}|[A-Z])\b/gi;
+  while((m=re.exec(text))) ex.add(m[1].toUpperCase());
+  return [...ex].slice(0,4);
+}
+function sampleQuote(text){
+  const sentences=text.split(/(?<=[.!?])\s+/).map(s=>s.trim().replace(/\s+/g,' '))
+    .filter(s=>s.length>55&&s.length<190&&/[a-z]/.test(s));
+  if(!sentences.length) return '';
+  return sentences[Math.min(sentences.length-1,Math.floor(sentences.length*0.35))];
+}
+
+function buildGuideExamples(){
+  const wits=extractWitnesses(caseText);
+  const exs=extractExhibits(caseText);
+  const w=wits[0], w2=wits[1]||wits[0];
+  const ex=exs[0];
+  const list=[];
+  // Personalized when we found names; otherwise sensible generic prompts.
+  list.push({icon:'⚠️',tab:'weaknesses',deep:true,
+    text:'What are the 3 biggest weaknesses in my case?',tag:'My Weaknesses · Deep Dive'});
+  if(w) list.push({icon:'🔍',tab:'witnesses',deep:true,
+    text:`What's the weakest part of ${w}'s testimony?`,tag:'Witnesses · Deep Dive — quotes real lines'});
+  else list.push({icon:'🔍',tab:'witnesses',deep:true,
+    text:'What is the weakest part of my main witness\'s testimony?',tag:'Witnesses · Deep Dive'});
+  if(w2) list.push({icon:'❓',tab:'crossexam',deep:true,
+    text:`Give me 5 cross-examination questions to attack ${w2}.`,tag:'Cross-Exam · Deep Dive'});
+  else list.push({icon:'❓',tab:'crossexam',deep:false,
+    text:'Give me 5 cross-examination questions for the other side\'s key witness.',tag:'Cross-Exam'});
+  list.push({icon:'📢',tab:'opening',deep:false,
+    text:'Give me 3 possible themes for my opening statement.',tag:'Opening Statement'});
+  if(ex) list.push({icon:'🔨',tab:'evidence',deep:true,
+    text:`How do I get Exhibit ${ex} admitted, and what objections should I expect?`,tag:'Evidence · Deep Dive'});
+  return list;
+}
+
+function openGuide(){
+  // Personalized quote
+  const q=sampleQuote(caseText);
+  const qsec=document.getElementById('guide-quote-sec');
+  if(q){
+    document.getElementById('guide-quote-text').textContent='“'+q+'”';
+    document.getElementById('guide-quote-label').textContent='From '+(caseName||'your case');
+    qsec.style.display='';
+  } else { qsec.style.display='none'; }
+  document.getElementById('guide-sub').textContent=
+    caseName?('A quick tour — examples built from “'+caseName+'.”'):'A quick tour of everything you can do.';
+  // Build clickable examples
+  const wrap=document.getElementById('guide-examples');
+  wrap.innerHTML='';
+  buildGuideExamples().forEach(ex=>{
+    const b=document.createElement('button');
+    b.className='g-ex';
+    b.innerHTML=`<span class="gx-icon">${ex.icon}</span><span class="gx-body">`+
+      `<span class="gx-text">${esc(ex.text)}</span>`+
+      `<span class="gx-tag">${ex.deep?'<span class="gx-deep">🔍 Deep Dive</span> · ':''}${esc(ex.tag.replace(/ · Deep Dive.*/,''))}</span></span>`;
+    b.onclick=()=>runExample(ex.tab,ex.deep,ex.text);
+    wrap.appendChild(b);
+  });
+  document.getElementById('guide-overlay').classList.add('show');
+}
+function closeGuide(){document.getElementById('guide-overlay').classList.remove('show');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeGuide();});
+
+function runExample(tabId, deep, text){
+  closeGuide();
+  switchTab(tabId);
+  if(deep!==deepMode) toggleDeep();
+  ask(text);
 }
 </script>
 </body>
