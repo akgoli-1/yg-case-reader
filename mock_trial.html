@@ -189,7 +189,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   <a id="up-back" class="hdr-back" href="https://ygblueprint.me" target="_top" style="display:none;margin-bottom:16px">← Back to site</a>
   <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
     <h2>⚖️ Y&G Case Reader</h2>
-    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v1.8</span>
+    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v1.9</span>
   </div>
   <p class="sub">Upload your case packet — AI gives you coaching, strategy, and feedback organized by topic.</p>
   <div><span class="powered">✦ <b>llama-3.3-70b</b> via Groq · Free · No rate limits in normal use</span></div>
@@ -229,7 +229,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
     <div id="hdr-model"><span class="dot"></span>llama-3.3-70b</div>
     <button id="hdr-guide" onclick="openGuide()">📖 How it works</button>
     <button id="hdr-new" onclick="newCase()">↩ New case</button>
-    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v1.8</span>
+    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v1.9</span>
   </div>
 
   <div id="reader-body">
@@ -389,9 +389,8 @@ async function readPDF(file){
   return pages.join('\n\n');
 }
 
-function startReader(){
-  if(!caseText){alert('Please upload a case packet first.');return;}
-  role=document.querySelector('[data-g="role"].sel')?.dataset.v||'prosecution';
+// Shared reader UI setup — used by a fresh start AND when restoring a saved session
+function enterReader(){
   document.getElementById('upload-screen').style.display='none';
   document.getElementById('reader-screen').classList.add('active');
   document.getElementById('hdr-case').textContent=caseName;
@@ -402,18 +401,48 @@ function startReader(){
     (role==='prosecution'?'<span style="color:var(--prosecution)">Prosecution</span>':'<span style="color:var(--defense)">Defense</span>')+
     ' · '+words.toLocaleString()+' words';
   buildTabs();
+}
+
+function startReader(){
+  if(!caseText){alert('Please upload a case packet first.');return;}
+  role=document.querySelector('[data-g="role"].sel')?.dataset.v||'prosecution';
+  enterReader();
   switchTab('general');
   ensureDigest();   // start building the compact case digest in the background now
+  saveSession();
   if(!localStorage.getItem('yg_guide_seen')){   // show the tutorial on first ever use
     setTimeout(openGuide,400);
     try{localStorage.setItem('yg_guide_seen','1');}catch(_){}
   }
 }
 
+// ══════ AUTO-SAVE: keep the case, all chats, and checklists in the browser ══════
+function saveSession(){
+  if(!caseText)return;
+  try{
+    localStorage.setItem('yg_session', JSON.stringify({
+      v:1, caseText, caseName, role, caseDigest, activeTab, tabState
+    }));
+  }catch(_){}
+}
+function restoreSession(){
+  let s;
+  try{ s=JSON.parse(localStorage.getItem('yg_session')||'null'); }catch(_){ s=null; }
+  if(!s||!s.caseText)return false;
+  caseText=s.caseText; caseName=s.caseName||'Saved case'; role=s.role||'prosecution';
+  caseDigest=s.caseDigest||'';
+  TABS.forEach(t=>{ tabState[t.id]=(s.tabState&&s.tabState[t.id])?s.tabState[t.id]:{history:[],checks:[]}; });
+  enterReader();
+  switchTab((s.activeTab&&tabState[s.activeTab])?s.activeTab:'general');
+  if(!caseDigest) ensureDigest();   // rebuild digest only if it wasn't saved
+  return true;
+}
+
 function newCase(){
   caseText='';caseName='';caseDigest='';digestPromise=null;
   if(deepMode)toggleDeep();
   TABS.forEach(t=>{ tabState[t.id]={ history:[], checks:[] }; });
+  try{localStorage.removeItem('yg_session');}catch(_){}
   document.getElementById('reader-screen').classList.remove('active');
   document.getElementById('upload-screen').style.display='flex';
   document.getElementById('file-status').textContent='';
@@ -460,6 +489,7 @@ function switchTab(id){
   if(tabState[id].history.length===0){
     showIntro(id,t.intro);
   }
+  if(caseText) saveSession();   // remember which tab you were on
 }
 
 function showIntro(tabId, intro){
@@ -489,16 +519,19 @@ function addCheck(){
   tabState[activeTab].checks.push({text,done:false});
   inp.value='';
   renderChecklist(activeTab);
+  saveSession();
 }
 
 function toggleCheck(i){
   tabState[activeTab].checks[i].done=!tabState[activeTab].checks[i].done;
   renderChecklist(activeTab);
+  saveSession();
 }
 
 function deleteCheck(i){
   tabState[activeTab].checks.splice(i,1);
   renderChecklist(activeTab);
+  saveSession();
 }
 
 // ══════ TOKEN OPTIMIZATION: one-time case digest ══════
@@ -753,6 +786,7 @@ async function ask(userMsg){
     bubble.innerHTML=mdToHtml(full);
     msgs.scrollTop=msgs.scrollHeight;
     tabState[tabId].history.push({role:'assistant',content:full});
+    saveSession();   // persist the chat so it's still here next visit
   }catch(e){
     hideTyping();
     if(e.message==='RATE_LIMIT'){
@@ -786,6 +820,7 @@ function toggleDeep(){
 
 // ══════ CHANGELOG ══════
 const CHANGELOG=[
+  ['v1.9','Your case, all tab chats, and checklists now auto-save in your browser — they\'re still here when you come back. "New case" clears them.'],
   ['v1.8','Added a "← Back to site" button (shows only when embedded on your website)'],
   ['v1.7','Added a "How it works" tutorial with clickable examples built from your own case (real witness names, a real quote)'],
   ['v1.6','Deep Dive now shows the exact lines pulled from your case and makes the AI quote them word-for-word'],
@@ -887,6 +922,9 @@ if(window.self!==window.top){   // we're inside an iframe (i.e. embedded on ygbl
     if(el){ el.href=SITE_URL; el.style.display='inline-flex'; }
   });
 }
+
+// ══════ On load: bring back your saved case + chats if you have one ══════
+restoreSession();
 
 function runExample(tabId, deep, text){
   closeGuide();
