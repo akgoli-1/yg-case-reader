@@ -123,9 +123,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 #send-btn:hover:not(:disabled){opacity:.88}
 #send-btn:disabled{opacity:.35;cursor:not-allowed}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:10px}
+#version-tag{position:fixed;bottom:8px;right:10px;font-size:10px;color:var(--text-muted);font-family:'Inter',sans-serif;letter-spacing:.04em;z-index:9999;pointer-events:none;opacity:.6;user-select:none}
 </style>
 </head>
 <body>
+<div id="version-tag">v1.1</div>
 
 <!-- ════ UPLOAD ════ -->
 <div id="upload-screen">
