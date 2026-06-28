@@ -146,6 +146,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 #rate-note{padding:0 16px 9px;font-size:11px;color:var(--text-muted);line-height:1.5;background:var(--surface);font-style:italic}
 #hdr-guide{background:none;border:1px solid var(--border2);color:var(--gold);font-size:11px;padding:4px 9px;border-radius:6px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;font-weight:600}
 #hdr-guide:hover{background:rgba(212,168,67,.12);border-color:var(--gold)}
+.hdr-back{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text-dim);text-decoration:none;border:1px solid var(--border2);border-radius:6px;padding:4px 10px;font-family:'Inter',sans-serif;white-space:nowrap;transition:all .15s;cursor:pointer}
+.hdr-back:hover{color:var(--text);border-color:var(--gold-dim);background:rgba(255,255,255,.03)}
 
 /* ── Guide / tutorial modal ── */
 #guide-overlay{position:fixed;inset:0;background:rgba(4,7,14,.74);backdrop-filter:blur(3px);z-index:10000;display:none;align-items:center;justify-content:center;padding:24px}
@@ -184,9 +186,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 <!-- ════ UPLOAD ════ -->
 <div id="upload-screen">
 <div id="upload-card">
+  <a id="up-back" class="hdr-back" href="https://ygblueprint.me" target="_top" style="display:none;margin-bottom:16px">← Back to site</a>
   <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
     <h2>⚖️ Y&G Case Reader</h2>
-    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v1.7</span>
+    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v1.8</span>
   </div>
   <p class="sub">Upload your case packet — AI gives you coaching, strategy, and feedback organized by topic.</p>
   <div><span class="powered">✦ <b>llama-3.3-70b</b> via Groq · Free · No rate limits in normal use</span></div>
@@ -219,13 +222,14 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 <!-- ════ READER ════ -->
 <div id="reader-screen">
   <div id="hdr">
+    <a id="hdr-back" class="hdr-back" href="https://ygblueprint.me" target="_top" style="display:none">← Back to site</a>
     <h1>⚖️ Case Reader</h1>
     <span id="hdr-case">—</span>
     <span id="hdr-role" class="prosecution">PROSECUTION</span>
     <div id="hdr-model"><span class="dot"></span>llama-3.3-70b</div>
     <button id="hdr-guide" onclick="openGuide()">📖 How it works</button>
     <button id="hdr-new" onclick="newCase()">↩ New case</button>
-    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v1.7</span>
+    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v1.8</span>
   </div>
 
   <div id="reader-body">
@@ -782,6 +786,7 @@ function toggleDeep(){
 
 // ══════ CHANGELOG ══════
 const CHANGELOG=[
+  ['v1.8','Added a "← Back to site" button (shows only when embedded on your website)'],
   ['v1.7','Added a "How it works" tutorial with clickable examples built from your own case (real witness names, a real quote)'],
   ['v1.6','Deep Dive now shows the exact lines pulled from your case and makes the AI quote them word-for-word'],
   ['v1.5','Added 🔍 Deep Dive — pulls the exact wording from your case so the AI can pinpoint what\'s wrong, while staying token-cheap'],
@@ -873,6 +878,15 @@ function openGuide(){
 }
 function closeGuide(){document.getElementById('guide-overlay').classList.remove('show');}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeGuide();});
+
+// ══════ "Back to site" — only shown when the app is embedded on the main website ══════
+const SITE_URL='https://ygblueprint.me';
+if(window.self!==window.top){   // we're inside an iframe (i.e. embedded on ygblueprint.me)
+  ['hdr-back','up-back'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){ el.href=SITE_URL; el.style.display='inline-flex'; }
+  });
+}
 
 function runExample(tabId, deep, text){
   closeGuide();
