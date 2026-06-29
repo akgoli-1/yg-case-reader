@@ -19,7 +19,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 
 /* ── Upload ── */
 #upload-screen{
-  position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;
+  position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;
   background-image:linear-gradient(rgba(92,140,232,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(92,140,232,.055) 1px,transparent 1px);
   background-size:140px 140px
 }
@@ -41,8 +41,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 #dz-icon{font-size:26px;line-height:1}
 #dz-text{font-size:13px;color:var(--text-dim);pointer-events:none}
 #dz-hint{font-size:11px;color:var(--text-muted);pointer-events:none}
-#file-status{margin-top:8px;font-size:12px;line-height:1.6;min-height:18px}
-.file-list{display:flex;flex-direction:column;gap:5px;margin-bottom:7px}
+.up-box{margin-top:12px}
+.up-box-label{font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:5px;display:flex;align-items:center;gap:6px}
+.drop-zone.mini{min-height:56px;padding:11px;margin-top:0;gap:3px}
+.dz-mini-text{font-size:12px;color:var(--text-muted);pointer-events:none;text-align:center}
+.file-status{margin-top:6px;font-size:12px;line-height:1.5}
+#up-hint{font-size:11px;color:var(--text-muted);margin-top:10px;line-height:1.5}
+.file-list{display:flex;flex-direction:column;gap:5px;margin-bottom:2px}
 .file-row{display:flex;align-items:center;gap:9px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:6px 10px;font-size:12px}
 .fr-name{flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fr-words{color:var(--text-muted);font-size:10.5px;white-space:nowrap}
@@ -196,7 +201,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   <a id="up-back" class="hdr-back" href="https://ygblueprint.me" target="_top" style="display:none;margin-bottom:16px">← Back to site</a>
   <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
     <h2>⚖️ Y&G Case Reader</h2>
-    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v2.0</span>
+    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v2.1</span>
   </div>
   <p class="sub">Upload your case packet — AI gives you coaching, strategy, and feedback organized by topic.</p>
   <div><span class="powered">✦ <b>llama-3.3-70b</b> via Groq · Free · No rate limits in normal use</span></div>
@@ -213,16 +218,38 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
     </div>
   </div>
 
-  <div class="s-label">Case Files — upload all of them</div>
-  <div class="drop-zone" ondragover="dzOver(event)" ondragleave="dzLeave()" ondrop="dzDrop(event)">
-    <input type="file" accept=".pdf,.txt,.md" multiple onchange="handleFiles(this.files);this.value=''">
-    <div id="dz-icon">📄</div>
-    <div id="dz-text">Drop your case PDFs here or <u>click to browse</u></div>
-    <div id="dz-hint">Affidavits, exhibits, witness statements — add as many as you need · .pdf / .txt · processed locally, never stored</div>
-  </div>
-  <div id="file-status"></div>
+  <div class="s-label">Upload your case — drop each type in its box</div>
 
-  <button id="go-btn" onclick="startReader()" disabled>Upload a case packet to continue →</button>
+  <div class="up-box">
+    <div class="up-box-label">⚖️ The Case</div>
+    <div class="drop-zone mini" ondragover="dzOver(event)" ondragleave="dzLeave(event)" ondrop="dzDrop(event,'case')">
+      <input type="file" accept=".pdf,.txt,.md" multiple onchange="handleFiles(this.files,'case');this.value=''">
+      <div class="dz-mini-text">Case packet / charging docs · <u>browse</u></div>
+    </div>
+    <div class="file-status" data-status="case"></div>
+  </div>
+
+  <div class="up-box">
+    <div class="up-box-label">👤 Affidavits</div>
+    <div class="drop-zone mini" ondragover="dzOver(event)" ondragleave="dzLeave(event)" ondrop="dzDrop(event,'affidavits')">
+      <input type="file" accept=".pdf,.txt,.md" multiple onchange="handleFiles(this.files,'affidavits');this.value=''">
+      <div class="dz-mini-text">Witness affidavits / statements · <u>browse</u></div>
+    </div>
+    <div class="file-status" data-status="affidavits"></div>
+  </div>
+
+  <div class="up-box">
+    <div class="up-box-label">🔍 Evidence</div>
+    <div class="drop-zone mini" ondragover="dzOver(event)" ondragleave="dzLeave(event)" ondrop="dzDrop(event,'evidence')">
+      <input type="file" accept=".pdf,.txt,.md" multiple onchange="handleFiles(this.files,'evidence');this.value=''">
+      <div class="dz-mini-text">Exhibits &amp; evidence · <u>browse</u></div>
+    </div>
+    <div class="file-status" data-status="evidence"></div>
+  </div>
+
+  <div id="up-hint">Add as many files as you want to each box · .pdf / .txt · processed locally, never stored</div>
+
+  <button id="go-btn" onclick="startReader()" disabled>Upload your files to continue →</button>
 </div>
 </div>
 
@@ -236,7 +263,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
     <div id="hdr-model"><span class="dot"></span>llama-3.3-70b</div>
     <button id="hdr-guide" onclick="openGuide()">📖 How it works</button>
     <button id="hdr-new" onclick="newCase()">↩ New case</button>
-    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v2.0</span>
+    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v2.1</span>
   </div>
 
   <div id="reader-body">
@@ -336,7 +363,12 @@ const TABS = [
 
 // ══════ STATE ══════
 let caseText='', caseName='', role='prosecution';
-let caseFiles=[];   // every uploaded file: {name, words, text} — combined into caseText
+let caseFiles=[];   // every uploaded file: {name, words, text, cat} — combined into caseText
+const CATS=[
+  {key:'case',       label:'Case',       heading:'CASE'},
+  {key:'affidavits', label:'Affidavit',  heading:'AFFIDAVIT'},
+  {key:'evidence',   label:'Evidence',   heading:'EVIDENCE'},
+];
 let activeTab='general', loading=false;
 let caseDigest='', digestPromise=null;   // compressed case, built once to save tokens
 let deepMode=false;                       // when on, the next message pulls exact case excerpts
@@ -348,63 +380,62 @@ function sel(el){
   document.querySelectorAll(`[data-g="${el.dataset.g}"]`).forEach(e=>e.classList.remove('sel'));
   el.classList.add('sel');
 }
-function dzOver(e){e.preventDefault();document.querySelector('.drop-zone').classList.add('drag-over');}
-function dzLeave(){document.querySelector('.drop-zone').classList.remove('drag-over');}
-function dzDrop(e){e.preventDefault();dzLeave();handleFiles(e.dataTransfer.files);}
+function dzOver(e){e.preventDefault();e.currentTarget.classList.add('drag-over');}
+function dzLeave(e){e.currentTarget.classList.remove('drag-over');}
+function dzDrop(e,cat){e.preventDefault();e.currentTarget.classList.remove('drag-over');handleFiles(e.dataTransfer.files,cat);}
 
-// Read one or many files (affidavits, exhibits, etc.) and combine them into one case.
-async function handleFiles(fileList){
+// Read one or many files into a category (case / affidavits / evidence).
+async function handleFiles(fileList, cat){
   const files=[...fileList].filter(Boolean);
   if(!files.length)return;
-  const status=document.getElementById('file-status');
-  document.getElementById('dz-icon').textContent='⏳';
+  const status=document.querySelector('[data-status="'+cat+'"]');
   for(const file of files){
     const ext=(file.name.split('.').pop()||'').toLowerCase();
-    status.innerHTML='Reading <em>'+esc(file.name)+'</em>…';
+    if(status) status.innerHTML='Reading <em>'+esc(file.name)+'</em>…';
     try{
       let txt=ext==='pdf'?await readPDF(file):await file.text();
       txt=txt.replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();   // trim whitespace bloat
       const words=txt.split(/\s+/).filter(Boolean).length;
-      const at=caseFiles.findIndex(f=>f.name===file.name);   // replace if same name re-added
-      if(at>=0) caseFiles[at]={name:file.name,words,text:txt};
-      else caseFiles.push({name:file.name,words,text:txt});
+      const at=caseFiles.findIndex(f=>f.name===file.name&&f.cat===cat);   // replace if same name re-added
+      if(at>=0) caseFiles[at]={name:file.name,words,text:txt,cat};
+      else caseFiles.push({name:file.name,words,text:txt,cat});
     }catch(err){
       console.error(err);
-      document.getElementById('dz-icon').textContent='❌';
-      status.innerHTML='<span style="color:var(--prosecution)">⚠ Could not read '+esc(file.name)+'. Try saving it as a .txt file.</span>';
+      if(status) status.innerHTML='<span style="color:var(--prosecution)">⚠ Could not read '+esc(file.name)+'. Try saving it as a .txt file.</span>';
       return;
     }
   }
   rebuildCase();
 }
 
-// Rebuild the combined case text from all uploaded files, with a header before each.
+// Rebuild the combined case text, grouped by category with a header before each file.
 function rebuildCase(){
-  caseText=caseFiles.map(f=>'===== FILE: '+f.name+' =====\n'+f.text).join('\n\n').trim();
+  const parts=[];
+  CATS.forEach(c=>{
+    caseFiles.filter(f=>f.cat===c.key).forEach(f=>
+      parts.push('===== '+c.heading+': '+f.name+' =====\n'+f.text));
+  });
+  caseText=parts.join('\n\n').trim();
   caseDigest='';digestPromise=null;   // files changed → rebuild digest later
-  caseName=caseFiles.length===1
-    ? caseFiles[0].name.replace(/\.[^.]+$/,'')
-    : 'Case packet ('+caseFiles.length+' files)';
-  renderFileList();
+  const n=caseFiles.length;
+  caseName=n===1 ? caseFiles[0].name.replace(/\.[^.]+$/,'') : 'Case packet ('+n+' files)';
+  CATS.forEach(c=>renderFileList(c.key));
   const btn=document.getElementById('go-btn');
-  btn.disabled=caseFiles.length===0;
-  btn.textContent=caseFiles.length?'Analyze my case →':'Upload a case packet to continue →';
-  document.getElementById('dz-icon').textContent=caseFiles.length?'✅':'📄';
-  document.getElementById('dz-text').innerHTML=caseFiles.length
-    ? '<strong>Add more files, or hit Analyze →</strong>'
-    : 'Drop your case PDFs here or <u>click to browse</u>';
+  btn.disabled=n===0;
+  btn.textContent=n?'Analyze my case →':'Upload your files to continue →';
 }
 
-function renderFileList(){
-  const status=document.getElementById('file-status');
-  if(!caseFiles.length){status.innerHTML='';return;}
-  const total=caseFiles.reduce((a,f)=>a+f.words,0);
-  status.innerHTML='<div class="file-list">'+
-    caseFiles.map((f,i)=>'<div class="file-row"><span class="fr-name">📄 '+esc(f.name)+'</span>'+
+function renderFileList(cat){
+  const el=document.querySelector('[data-status="'+cat+'"]');
+  if(!el)return;
+  const fs=caseFiles.filter(f=>f.cat===cat);
+  if(!fs.length){el.innerHTML='';return;}
+  el.innerHTML='<div class="file-list">'+fs.map(f=>{
+    const gi=caseFiles.indexOf(f);
+    return '<div class="file-row"><span class="fr-name">📄 '+esc(f.name)+'</span>'+
       '<span class="fr-words">'+f.words.toLocaleString()+'</span>'+
-      '<button class="fr-del" onclick="removeFile('+i+')" title="Remove">✕</button></div>').join('')+
-    '</div><div class="file-total">✓ '+caseFiles.length+' file'+(caseFiles.length>1?'s':'')+
-    ' · '+total.toLocaleString()+' words total</div>';
+      '<button class="fr-del" onclick="removeFile('+gi+')" title="Remove">✕</button></div>';
+  }).join('')+'</div>';
 }
 
 function removeFile(i){ caseFiles.splice(i,1); rebuildCase(); }
@@ -486,11 +517,8 @@ function newCase(){
   try{localStorage.removeItem('yg_session');}catch(_){}
   document.getElementById('reader-screen').classList.remove('active');
   document.getElementById('upload-screen').style.display='flex';
-  document.getElementById('file-status').innerHTML='';
-  document.getElementById('dz-icon').textContent='📄';
-  document.getElementById('dz-text').innerHTML='Drop your case PDFs here or <u>click to browse</u>';
-  document.getElementById('dz-hint').style.display='';
-  const btn=document.getElementById('go-btn');btn.disabled=true;btn.textContent='Upload a case packet to continue →';
+  document.querySelectorAll('.file-status').forEach(el=>el.innerHTML='');
+  const btn=document.getElementById('go-btn');btn.disabled=true;btn.textContent='Upload your files to continue →';
 }
 
 // ══════ TABS ══════
@@ -861,6 +889,7 @@ function toggleDeep(){
 
 // ══════ CHANGELOG ══════
 const CHANGELOG=[
+  ['v2.1','Three upload boxes — The Case, Affidavits, and Evidence — each takes multiple files and they\'re labeled by type for the AI'],
   ['v2.0','Upload MULTIPLE case files at once — affidavits, exhibits, witness statements all combine into one case. Add or remove files freely. Ready for any future case.'],
   ['v1.9','Your case, all tab chats, and checklists now auto-save in your browser — they\'re still here when you come back. "New case" clears them.'],
   ['v1.8','Added a "← Back to site" button (shows only when embedded on your website)'],
