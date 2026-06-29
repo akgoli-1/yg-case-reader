@@ -42,6 +42,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 #dz-text{font-size:13px;color:var(--text-dim);pointer-events:none}
 #dz-hint{font-size:11px;color:var(--text-muted);pointer-events:none}
 #file-status{margin-top:8px;font-size:12px;line-height:1.6;min-height:18px}
+.file-list{display:flex;flex-direction:column;gap:5px;margin-bottom:7px}
+.file-row{display:flex;align-items:center;gap:9px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:6px 10px;font-size:12px}
+.fr-name{flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fr-words{color:var(--text-muted);font-size:10.5px;white-space:nowrap}
+.fr-del{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:0 2px;line-height:1}
+.fr-del:hover{color:var(--prosecution)}
+.file-total{font-size:12px;color:var(--ok);font-weight:600}
 #go-btn{width:100%;margin-top:20px;background:var(--gold);color:#1a1200;border:none;font-weight:700;font-size:14px;padding:13px;border-radius:10px;cursor:pointer;font-family:'Inter',sans-serif;transition:opacity .15s;box-shadow:0 8px 26px rgba(77,141,246,.2)}
 #go-btn:hover:not(:disabled){opacity:.9}
 #go-btn:disabled{opacity:.38;cursor:not-allowed;box-shadow:none}
@@ -189,7 +196,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   <a id="up-back" class="hdr-back" href="https://ygblueprint.me" target="_top" style="display:none;margin-bottom:16px">← Back to site</a>
   <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
     <h2>⚖️ Y&G Case Reader</h2>
-    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v1.9</span>
+    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v2.0</span>
   </div>
   <p class="sub">Upload your case packet — AI gives you coaching, strategy, and feedback organized by topic.</p>
   <div><span class="powered">✦ <b>llama-3.3-70b</b> via Groq · Free · No rate limits in normal use</span></div>
@@ -206,12 +213,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
     </div>
   </div>
 
-  <div class="s-label">Case Packet</div>
+  <div class="s-label">Case Files — upload all of them</div>
   <div class="drop-zone" ondragover="dzOver(event)" ondragleave="dzLeave()" ondrop="dzDrop(event)">
-    <input type="file" accept=".pdf,.txt,.md" onchange="handleFile(this.files[0])">
+    <input type="file" accept=".pdf,.txt,.md" multiple onchange="handleFiles(this.files);this.value=''">
     <div id="dz-icon">📄</div>
-    <div id="dz-text">Drop your PDF here or <u>click to browse</u></div>
-    <div id="dz-hint">.pdf · .txt · .md — processed locally, never stored</div>
+    <div id="dz-text">Drop your case PDFs here or <u>click to browse</u></div>
+    <div id="dz-hint">Affidavits, exhibits, witness statements — add as many as you need · .pdf / .txt · processed locally, never stored</div>
   </div>
   <div id="file-status"></div>
 
@@ -229,7 +236,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
     <div id="hdr-model"><span class="dot"></span>llama-3.3-70b</div>
     <button id="hdr-guide" onclick="openGuide()">📖 How it works</button>
     <button id="hdr-new" onclick="newCase()">↩ New case</button>
-    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v1.9</span>
+    <span class="vtag" onclick="showChangelog()" title="Click to see what's new">v2.0</span>
   </div>
 
   <div id="reader-body">
@@ -329,6 +336,7 @@ const TABS = [
 
 // ══════ STATE ══════
 let caseText='', caseName='', role='prosecution';
+let caseFiles=[];   // every uploaded file: {name, words, text} — combined into caseText
 let activeTab='general', loading=false;
 let caseDigest='', digestPromise=null;   // compressed case, built once to save tokens
 let deepMode=false;                       // when on, the next message pulls exact case excerpts
@@ -342,31 +350,64 @@ function sel(el){
 }
 function dzOver(e){e.preventDefault();document.querySelector('.drop-zone').classList.add('drag-over');}
 function dzLeave(){document.querySelector('.drop-zone').classList.remove('drag-over');}
-function dzDrop(e){e.preventDefault();dzLeave();const f=e.dataTransfer.files[0];if(f)handleFile(f);}
+function dzDrop(e){e.preventDefault();dzLeave();handleFiles(e.dataTransfer.files);}
 
-async function handleFile(file){
-  if(!file)return;
-  const ext=(file.name.split('.').pop()||'').toLowerCase();
+// Read one or many files (affidavits, exhibits, etc.) and combine them into one case.
+async function handleFiles(fileList){
+  const files=[...fileList].filter(Boolean);
+  if(!files.length)return;
   const status=document.getElementById('file-status');
   document.getElementById('dz-icon').textContent='⏳';
-  status.innerHTML='Reading <em>'+file.name+'</em>…';
-  try{
-    caseText=ext==='pdf'?await readPDF(file):await file.text();
-    caseText=caseText.replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();  // trim PDF whitespace bloat
-    caseDigest='';digestPromise=null;   // new file → rebuild digest
-    caseName=file.name.replace(/\.[^.]+$/,'');
-    const words=caseText.trim().split(/\s+/).filter(Boolean).length;
-    document.getElementById('dz-icon').textContent='✅';
-    document.getElementById('dz-text').innerHTML='<strong>'+file.name+'</strong>';
-    document.getElementById('dz-hint').style.display='none';
-    status.innerHTML='<span style="color:var(--ok)">✓ '+words.toLocaleString()+' words loaded</span>';
-    const btn=document.getElementById('go-btn');btn.disabled=false;btn.textContent='Analyze my case →';
-  }catch(err){
-    document.getElementById('dz-icon').textContent='❌';
-    status.innerHTML='<span style="color:var(--prosecution)">⚠ Could not read file. Try saving as .txt.</span>';
-    console.error(err);
+  for(const file of files){
+    const ext=(file.name.split('.').pop()||'').toLowerCase();
+    status.innerHTML='Reading <em>'+esc(file.name)+'</em>…';
+    try{
+      let txt=ext==='pdf'?await readPDF(file):await file.text();
+      txt=txt.replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();   // trim whitespace bloat
+      const words=txt.split(/\s+/).filter(Boolean).length;
+      const at=caseFiles.findIndex(f=>f.name===file.name);   // replace if same name re-added
+      if(at>=0) caseFiles[at]={name:file.name,words,text:txt};
+      else caseFiles.push({name:file.name,words,text:txt});
+    }catch(err){
+      console.error(err);
+      document.getElementById('dz-icon').textContent='❌';
+      status.innerHTML='<span style="color:var(--prosecution)">⚠ Could not read '+esc(file.name)+'. Try saving it as a .txt file.</span>';
+      return;
+    }
   }
+  rebuildCase();
 }
+
+// Rebuild the combined case text from all uploaded files, with a header before each.
+function rebuildCase(){
+  caseText=caseFiles.map(f=>'===== FILE: '+f.name+' =====\n'+f.text).join('\n\n').trim();
+  caseDigest='';digestPromise=null;   // files changed → rebuild digest later
+  caseName=caseFiles.length===1
+    ? caseFiles[0].name.replace(/\.[^.]+$/,'')
+    : 'Case packet ('+caseFiles.length+' files)';
+  renderFileList();
+  const btn=document.getElementById('go-btn');
+  btn.disabled=caseFiles.length===0;
+  btn.textContent=caseFiles.length?'Analyze my case →':'Upload a case packet to continue →';
+  document.getElementById('dz-icon').textContent=caseFiles.length?'✅':'📄';
+  document.getElementById('dz-text').innerHTML=caseFiles.length
+    ? '<strong>Add more files, or hit Analyze →</strong>'
+    : 'Drop your case PDFs here or <u>click to browse</u>';
+}
+
+function renderFileList(){
+  const status=document.getElementById('file-status');
+  if(!caseFiles.length){status.innerHTML='';return;}
+  const total=caseFiles.reduce((a,f)=>a+f.words,0);
+  status.innerHTML='<div class="file-list">'+
+    caseFiles.map((f,i)=>'<div class="file-row"><span class="fr-name">📄 '+esc(f.name)+'</span>'+
+      '<span class="fr-words">'+f.words.toLocaleString()+'</span>'+
+      '<button class="fr-del" onclick="removeFile('+i+')" title="Remove">✕</button></div>').join('')+
+    '</div><div class="file-total">✓ '+caseFiles.length+' file'+(caseFiles.length>1?'s':'')+
+    ' · '+total.toLocaleString()+' words total</div>';
+}
+
+function removeFile(i){ caseFiles.splice(i,1); rebuildCase(); }
 
 async function readPDF(file){
   if(!window.pdfjsLib){
@@ -439,15 +480,15 @@ function restoreSession(){
 }
 
 function newCase(){
-  caseText='';caseName='';caseDigest='';digestPromise=null;
+  caseText='';caseName='';caseDigest='';digestPromise=null;caseFiles=[];
   if(deepMode)toggleDeep();
   TABS.forEach(t=>{ tabState[t.id]={ history:[], checks:[] }; });
   try{localStorage.removeItem('yg_session');}catch(_){}
   document.getElementById('reader-screen').classList.remove('active');
   document.getElementById('upload-screen').style.display='flex';
-  document.getElementById('file-status').textContent='';
+  document.getElementById('file-status').innerHTML='';
   document.getElementById('dz-icon').textContent='📄';
-  document.getElementById('dz-text').innerHTML='Drop your PDF here or <u>click to browse</u>';
+  document.getElementById('dz-text').innerHTML='Drop your case PDFs here or <u>click to browse</u>';
   document.getElementById('dz-hint').style.display='';
   const btn=document.getElementById('go-btn');btn.disabled=true;btn.textContent='Upload a case packet to continue →';
 }
@@ -820,6 +861,7 @@ function toggleDeep(){
 
 // ══════ CHANGELOG ══════
 const CHANGELOG=[
+  ['v2.0','Upload MULTIPLE case files at once — affidavits, exhibits, witness statements all combine into one case. Add or remove files freely. Ready for any future case.'],
   ['v1.9','Your case, all tab chats, and checklists now auto-save in your browser — they\'re still here when you come back. "New case" clears them.'],
   ['v1.8','Added a "← Back to site" button (shows only when embedded on your website)'],
   ['v1.7','Added a "How it works" tutorial with clickable examples built from your own case (real witness names, a real quote)'],
